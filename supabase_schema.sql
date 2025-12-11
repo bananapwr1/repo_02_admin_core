@@ -35,6 +35,14 @@ CREATE TABLE IF NOT EXISTS strategies (
     entry_rules JSONB DEFAULT '{}'::jsonb,
     exit_rules JSONB DEFAULT '{}'::jsonb,
     risk_management JSONB DEFAULT '{}'::jsonb,
+    
+    -- Зашифрованные поля для конфиденциальных данных
+    -- Эти поля содержат зашифрованные JSON-данные (используется Fernet encryption)
+    api_keys_encrypted TEXT,           -- Зашифрованные API ключи бирж
+    secret_keys_encrypted TEXT,        -- Зашифрованные секретные ключи
+    private_params_encrypted TEXT,     -- Зашифрованные приватные параметры
+    credentials_encrypted TEXT,        -- Зашифрованные учетные данные
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_by_ai BOOLEAN DEFAULT FALSE

@@ -373,6 +373,36 @@ class SupabaseConnector:
         except Exception as e:
             logger.error(f"Ошибка получения логов решений: {e}")
             return []
+
+    async def create_decision_log(
+        self,
+        asset: str,
+        signal_type: Optional[str] = None,
+        reasoning: Optional[str] = None,
+        confidence: Optional[float] = None,
+        indicators_data: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Создать запись в decision_logs.
+
+        Используется для логов "рассуждений/решений" Ядра и/или AI.
+        """
+        try:
+            self._ensure_connected()
+            payload: Dict[str, Any] = {
+                "asset": asset,
+                "signal_type": signal_type,
+                "reasoning": reasoning,
+                "confidence": confidence,
+                "indicators_data": indicators_data or {},
+            }
+            # Удаляем None-поля, чтобы не затирать значения по умолчанию
+            payload = {k: v for k, v in payload.items() if v is not None}
+            self.client.table("decision_logs").insert(payload).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка создания decision_log: {e}")
+            return False
     
     async def get_trading_statistics(self) -> Dict[str, Any]:
         """Получить общую статистику трейдинга"""

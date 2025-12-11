@@ -33,6 +33,18 @@ async def on_startup(bot: Bot):
     
     # Инициализируем сервис уведомлений с экземпляром бота
     notification_service = get_notification_service(bot)
+
+    # ВАЖНО: при деплое на хостингах часто остаётся настроенный webhook.
+    # Если webhook активен, polling может не получать апдейты или конфликтовать с getUpdates.
+    # Поэтому принудительно удаляем webhook перед запуском.
+    try:
+        webhook_info = await bot.get_webhook_info()
+        if webhook_info and getattr(webhook_info, "url", ""):
+            logger.warning(f"⚠️ Обнаружен активный webhook: {webhook_info.url} — удаляем и переходим на polling")
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("✅ Webhook отключён (drop_pending_updates=True), polling будет получать апдейты")
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось проверить/удалить webhook: {e}")
     
     # Проверяем конфигурацию
     try:

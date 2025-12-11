@@ -12,7 +12,10 @@ class Settings:
     """Настройки приложения"""
     
     # Telegram Bot
-    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN", "")
+    # Поддерживаем оба варианта переменной окружения:
+    # - TELEGRAM_BOT_TOKEN_ADMIN (предпочтительно для Repo 02)
+    # - TELEGRAM_BOT_TOKEN (часто используется в хостингах по умолчанию)
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN", "") or os.getenv("TELEGRAM_BOT_TOKEN", "")
     ADMIN_CHAT_ID: Optional[int] = int(os.getenv("ADMIN_CHAT_ID", "0")) if os.getenv("ADMIN_CHAT_ID") else None
     
     # Единственный администратор (Repo 02 должен быть доступен только ему)
@@ -55,7 +58,7 @@ class Settings:
     def validate(cls) -> bool:
         """Проверка наличия обязательных переменных"""
         if not cls.TELEGRAM_BOT_TOKEN:
-            raise ValueError("TELEGRAM_BOT_TOKEN_ADMIN не установлен")
+            raise ValueError("TELEGRAM_BOT_TOKEN_ADMIN (или TELEGRAM_BOT_TOKEN) не установлен")
         if not cls.SUPABASE_URL or not cls.SUPABASE_KEY:
             raise ValueError("SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY не установлены")
         # Repo 02: доступ строго одному админу

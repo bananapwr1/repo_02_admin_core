@@ -109,6 +109,14 @@ class DynamicStrategySwitcher:
             market_conditions,
             performance
         )
+
+        # Логируем само решение (даже если переключение не требуется)
+        await self._log_decision_to_db(
+            current_strategy=current_strategy,
+            market_conditions=market_conditions,
+            performance=performance,
+            switch_decision=switch_decision,
+        )
         
         if switch_decision:
             await self._execute_strategy_switch(
@@ -117,6 +125,71 @@ class DynamicStrategySwitcher:
                 market_conditions,
                 performance
             )
+
+    async def _log_decision_to_db(
+        self,
+        current_strategy: Optional[Dict[str, Any]],
+        market_conditions: MarketConditions,
+        performance: Dict[str, Any],
+        switch_decision: Optional[Dict[str, Any]],
+    ):
+        """
+        Пишем "лог рассуждения" в decision_logs, чтобы Admin Core мог отображать
+        последние решения/проверки логики анализа.
+        """
+        try:
+            current_name = current_strategy.get("name") if current_strategy else None
+            decision_type = "no_switch"
+            confidence = 0.55
+            if switch_decision:
+                decision_type = f"strategy_switch:{switch_decision.get('reason').value}"
+                confidence = float(switch_decision.get("confidence") or 0.7)
+
+            # Для decision_logs.asset используем агрегированную строку по активам (или 'core')
+            assets = getattr(market_conditions, "active_assets", None) or []
+            asset_field = ", ".join(assets) if assets else "core"
+
+            reasoning_lines = [
+                f"Current strategy: {current_name or 'None'}",
+                f"Decision: {decision_type}",
+                f"Recommended: {switch_decision.get('new_strategy') if switch_decision else '—'}",
+                f"Volatility: {market_conditions.overall_volatility}, Trend: {market_conditions.market_trend}, Session: {market_conditions.time_of_day}, Peak: {market_conditions.is_peak_hours}",
+            ]
+            if performance:
+                reasoning_lines.append(
+                    "Performance: "
+                    f"trades={performance.get('total_trades')}, "
+                    f"signals={performance.get('total_signals')}, "
+                    f"win_rate={performance.get('win_rate')}, "
+                    f"net_profit={performance.get('net_profit')}, "
+                    f"drawdown={performance.get('max_drawdown')}"
+                )
+
+            indicators_data = {
+                "market_conditions": {
+                    "overall_volatility": market_conditions.overall_volatility,
+                    "market_trend": market_conditions.market_trend,
+                    "time_of_day": market_conditions.time_of_day,
+                    "is_peak_hours": market_conditions.is_peak_hours,
+                    "trading_volume": market_conditions.trading_volume,
+                },
+                "performance": performance or {},
+                "switch_decision": {
+                    "new_strategy": switch_decision.get("new_strategy") if switch_decision else None,
+                    "reason": switch_decision.get("reason").value if switch_decision else None,
+                    "confidence": confidence,
+                },
+            }
+
+            await db.create_decision_log(
+                asset=asset_field,
+                signal_type=decision_type,
+                reasoning="\n".join(reasoning_lines),
+                confidence=confidence,
+                indicators_data=indicators_data,
+            )
+        except Exception as e:
+            logger.error(f"Ошибка записи decision_log: {e}")
     
     # ==================== АНАЛИЗ И ПРИНЯТИЕ РЕШЕНИЙ ====================
     

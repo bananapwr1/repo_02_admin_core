@@ -13,6 +13,7 @@ from aiogram.client.default import DefaultBotProperties
 from config import settings
 from handlers import setup_routers
 from middleware import AdminMiddleware
+from services.notification_service import get_notification_service
 
 # Настройка логирования
 logging.basicConfig(
@@ -28,57 +29,77 @@ logger = logging.getLogger(__name__)
 
 async def on_startup(bot: Bot):
     """Действия при запуске бота"""
-    logger.info("🚀 Admin Panel Bot запускается...")
+    logger.info("🚀 Admin Core запускается...")
+    
+    # Инициализируем сервис уведомлений с экземпляром бота
+    notification_service = get_notification_service(bot)
     
     # Проверяем конфигурацию
     try:
         settings.validate()
         logger.info("✅ Конфигурация проверена")
     except Exception as e:
-        logger.error(f"❌ Ошибка конфигурации: {e}")
+        error_msg = f"Ошибка конфигурации: {e}"
+        logger.error(f"❌ {error_msg}")
+        await notification_service.notify_error(error_msg, "CONFIG")
         raise
     
     # Проверяем подключение к Supabase
     try:
         from database import db
         await db.get_all_users()
-        logger.info("✅ Подключение к Supabase установлено")
+        logger.info("✅ Подключение к Supabase установлено (используется Service Role Key)")
     except Exception as e:
-        logger.error(f"❌ Ошибка подключения к Supabase: {e}")
+        error_msg = f"Ошибка подключения к Supabase: {e}"
+        logger.error(f"❌ {error_msg}")
+        await notification_service.notify_database_error(str(e))
         raise
     
-    # Отправляем уведомление админам о запуске
+    # Проверяем доступность шифрования
+    if not settings.ENCRYPTION_KEY:
+        logger.warning("⚠️ ENCRYPTION_KEY не установлен, шифрование конфиденциальных данных недоступно")
+    
+    # Отправляем уведомление о запуске через сервис уведомлений
+    await notification_service.notify_startup()
+    
+    # Дополнительно отправляем уведомления всем админам
     if settings.ADMIN_IDS:
         for admin_id in settings.ADMIN_IDS:
             try:
                 await bot.send_message(
                     admin_id,
-                    "✅ <b>Admin Panel Bot запущен!</b>\n\nБот готов к работе.",
+                    "✅ <b>Admin Core запущен!</b>\n\n"
+                    "🔐 Service Role Key активен\n"
+                    "📊 Система готова к управлению стратегиями",
                     parse_mode=ParseMode.HTML
                 )
             except Exception as e:
                 logger.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
     
-    logger.info("✅ Admin Panel Bot успешно запущен!")
+    logger.info("✅ Admin Core успешно запущен!")
 
 
 async def on_shutdown(bot: Bot):
     """Действия при остановке бота"""
-    logger.info("🛑 Admin Panel Bot останавливается...")
+    logger.info("🛑 Admin Core останавливается...")
     
-    # Уведомляем админов об остановке
+    # Уведомляем через сервис уведомлений
+    notification_service = get_notification_service(bot)
+    await notification_service.notify_shutdown()
+    
+    # Дополнительно уведомляем всех админов
     if settings.ADMIN_IDS:
         for admin_id in settings.ADMIN_IDS:
             try:
                 await bot.send_message(
                     admin_id,
-                    "🛑 <b>Admin Panel Bot остановлен</b>",
+                    "🛑 <b>Admin Core остановлен</b>",
                     parse_mode=ParseMode.HTML
                 )
             except:
                 pass
     
-    logger.info("✅ Admin Panel Bot остановлен")
+    logger.info("✅ Admin Core остановлен")
 
 
 async def main():
@@ -111,7 +132,16 @@ async def main():
         logger.info("🤖 Запуск polling...")
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
-        logger.error(f"❌ Критическая ошибка: {e}")
+        error_msg = f"Критическая ошибка при работе бота: {e}"
+        logger.error(f"❌ {error_msg}")
+        
+        # Уведомляем об ошибке
+        try:
+            notification_service = get_notification_service(bot)
+            await notification_service.notify_error(error_msg, "RUNTIME")
+        except:
+            pass
+        
         raise
     finally:
         await bot.session.close()

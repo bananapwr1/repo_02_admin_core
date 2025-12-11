@@ -13,6 +13,7 @@ class Settings:
     
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN", "")
+    ADMIN_CHAT_ID: Optional[int] = int(os.getenv("ADMIN_CHAT_ID", "0")) if os.getenv("ADMIN_CHAT_ID") else None
     
     # Supabase - ВАЖНО: используется Service Role Key для полного доступа
     # Admin Core (Repo 02) требует Service Role Key для управления всеми данными
@@ -23,6 +24,9 @@ class Settings:
     # OpenAI для AI-чата стратегий
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+    
+    # Ключ шифрования для конфиденциальных данных
+    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
     
     # Список ID админов (через запятую в .env)
     ADMIN_IDS: list[int] = [
@@ -44,6 +48,10 @@ class Settings:
             raise ValueError("SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY не установлены")
         if not cls.ADMIN_IDS:
             print("⚠️ ADMIN_IDS не установлен, все пользователи будут иметь доступ!")
+        if not cls.ADMIN_CHAT_ID:
+            print("⚠️ ADMIN_CHAT_ID не установлен, системные уведомления не будут отправляться!")
+        if not cls.ENCRYPTION_KEY:
+            print("⚠️ ENCRYPTION_KEY не установлен, шифрование конфиденциальных данных будет недоступно!")
         return True
 
 

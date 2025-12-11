@@ -1,6 +1,2 @@
-# repo_02_admin_core/requirements.txt
-python-telegram-bot
-python-dotenv
 supabase
 pandas
-# Добавьте, если используется: tensorflow, scikit-learn, или httpx для вызова внешнего LLM API

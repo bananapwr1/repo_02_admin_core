@@ -14,7 +14,9 @@ class Settings:
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN", "")
     
-    # Supabase
+    # Supabase - ВАЖНО: используется Service Role Key для полного доступа
+    # Admin Core (Repo 02) требует Service Role Key для управления всеми данными
+    # UI/Trading Bot (Repo 01) использует NEXT_PUBLIC_SUPABASE_KEY (ограниченный доступ)
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     

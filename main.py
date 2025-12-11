@@ -1,530 +1,313 @@
-#!/usr/bin/env python3
-"""
-CORE MANAGER BOT (Bot #2)
-Админский интерфейс для управления торговым ядром
-Только для ADMIN_IDS
-"""
-
 import os
-import json
 import logging
-from datetime import datetime
-from typing import Dict, Optional
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
-    filters, ContextTypes
-)
-from supabase import create_client, Client
-from dotenv import load_dotenv
+import asyncio
 import requests
+import json
+from datetime import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, ConversationHandler
+from dotenv import load_dotenv
+# from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT # Раскомментируйте, когда будете интегрировать LLM
+from typing import List, Dict, Any, Optional
 
-# Загружаем переменные окружения
+# ============================ КОНФИГУРАЦИЯ ============================
 load_dotenv()
 
-# ============== НАСТРОЙКИ ==============
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# Новый токен для админского бота
+BOT_TOKEN = os.getenv("BOT_TOKEN") # 7945037510:AAFdm4vYfd_nvBX_R1SAIoZhbJPwFebrdTQ
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
+
+# ВАЖНО: список администраторов
+ADMIN_IDS_STR = os.getenv("ADMIN_IDS", "7746862973") # Замените на свой ID
+ADMIN_IDS: List[int] = [int(i.strip()) for i in ADMIN_IDS_STR.split(',')]
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-# Проверка обязательных переменных
-if not all([BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY, ADMIN_IDS]):
-    raise ValueError("Missing required environment variables!")
+if not all([BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY]):
+    raise ValueError("❌ Отсутствуют ключевые переменные окружения для Bot #2.")
 
-# Инициализация Supabase
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Состояния FSM для админ-чата
+(WAITING_FOR_STRATEGY_INPUT,) = range(1)
 
 # Настройка логирования
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ============== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==============
-def check_admin(user_id: int) -> bool:
-    """Проверка, является ли пользователь администратором"""
+# ========================== КЛАССЫ И УТИЛИТЫ ==========================
+
+class SupabaseManager:
+    """Управление Supabase для чтения/записи данных ядра."""
+    def __init__(self, url, key):
+        self.url = url
+        self.key = key
+        self.headers = {
+            'apikey': self.key,
+            'Authorization': f'Bearer {self.key}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation' # Запрашиваем полный ответ для админа
+        }
+
+    def request(self, table, method='GET', data=None, filters=None):
+        """Универсальный запрос к Supabase"""
+        url = f"{self.url}/rest/v1/{table}"
+        if filters:
+            url += f"?{filters}"
+        
+        try:
+            if method == 'POST':
+                response = requests.post(url, headers=self.headers, json=data)
+            elif method == 'PATCH':
+                response = requests.patch(url, headers=self.headers, json=data)
+            elif method == 'GET':
+                response = requests.get(url, headers=self.headers)
+            
+            if response.status_code in [200, 201, 204]:
+                return response.json() if response.content else {'status': 'success'}
+            
+            logger.error(f"Supabase error ({method} on {table}): Status {response.status_code}, Body: {response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"Supabase network error: {e}")
+            return None
+
+    async def save_strategy_settings(self, admin_id: int, settings: Dict[str, Any]):
+        """Сохранение/обновление настроек стратегии"""
+        # В Supabase должна быть таблица 'strategy_settings'
+        data = {
+            'admin_id': admin_id,
+            'parameters': settings,
+            'updated_at': datetime.now().isoformat()
+        }
+        # Ищем существующую запись по admin_id, чтобы сделать upsert (если таблица настроена как RLS/Primary Key)
+        # В простейшем случае: всегда обновляем единственную запись или вставляем новую.
+        return self.request('strategy_settings', 'POST', data)
+
+    async def get_strategy_settings(self):
+        """Чтение текущих настроек стратегии"""
+        # Читаем последнюю активную стратегию
+        return self.request('strategy_settings', filters='order=updated_at.desc&limit=1')
+
+    async def save_screenshot(self, admin_id: int, image_url: str, caption: str):
+        """Сохранение скриншота для анализа ядром PA"""
+        data = {
+            'admin_id': admin_id,
+            'image_url': image_url,
+            'caption': caption,
+            'analyzed': False,
+            'created_at': datetime.now().isoformat()
+        }
+        return self.request('admin_screenshots', 'POST', data)
+
+# Инициализация
+db_core = SupabaseManager(SUPABASE_URL, SUPABASE_KEY)
+
+# =========================== ХЭНДЛЕРЫ КОМАНД ===========================
+
+def is_admin(user_id: int) -> bool:
+    """Проверка прав администратора."""
     return user_id in ADMIN_IDS
 
-async def admin_only(func):
-    """Декоратор для проверки прав администратора"""
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = update.effective_user.id
-        
-        if not check_admin(user_id):
-            await update.message.reply_text(
-                "⛔ У вас нет доступа к этому боту.\n"
-                "Это админский интерфейс торгового ядра."
-            )
-            return
-        
-        return await func(update, context)
-    
-    return wrapper
+async def admin_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Универсальная проверка, прерывающая выполнение для не-админов."""
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        await update.effective_message.reply_text("❌ У вас нет прав администратора для доступа к Ядру-Интерфейсу.")
+        return False
+    return True
 
-def call_claude_api(prompt: str, system_prompt: str = None) -> Optional[str]:
-    """Вызов Claude API через Anthropic"""
-    if not ANTHROPIC_API_KEY:
-        return "❌ ANTHROPIC_API_KEY не настроен"
+async def manager_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """👑 Главное меню администратора."""
+    if not await admin_check(update, context): return
     
-    headers = {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
-    }
-    
-    messages = [{"role": "user", "content": prompt}]
-    
-    data = {
-        "model": "claude-3-5-sonnet-20241022",
-        "max_tokens": 1000,
-        "messages": messages
-    }
-    
-    if system_prompt:
-        data["system"] = system_prompt
-    
-    try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers=headers,
-            json=data,
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("content", [{}])[0].get("text", "Нет ответа")
-        else:
-            return f"❌ Ошибка API: {response.status_code} - {response.text}"
-            
-    except Exception as e:
-        return f"❌ Исключение при вызове Claude: {str(e)}"
-
-# ============== КОМАНДЫ АДМИНИСТРАТОРА ==============
-@admin_only
-async def start_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Главное меню управления ядром"""
     keyboard = [
-        [InlineKeyboardButton("⚙️ Стратегии", callback_data="strategies_menu")],
-        [InlineKeyboardButton("📊 AI-рассуждения", callback_data="ai_reasoning_menu")],
-        [InlineKeyboardButton("🕵️ Парсер чатов", callback_data="parser_menu")],
-        [InlineKeyboardButton("🤖 Авто-торговля", callback_data="autotrade_menu")],
-        [InlineKeyboardButton("📈 Статистика", callback_data="stats_menu")],
-        [InlineKeyboardButton("💬 Чат со стратегией", callback_data="chat_strategy")]
+        [InlineKeyboardButton("⚙️ Настроить Стратегию", callback_data='admin_set_strategy')],
+        [InlineKeyboardButton("🧠 Чат со Стратегией (/chat)", callback_data='admin_start_llm')],
+        [InlineKeyboardButton("📜 Логи Ядра", callback_data='admin_view_logs')],
+        [InlineKeyboardButton("📊 Статистика Сделок", callback_data='admin_view_stats')],
+        [InlineKeyboardButton("⬆️ Прислать Скриншот", callback_data='admin_upload_photo')]
     ]
     
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
     await update.message.reply_text(
-        text="🧠 **Управление торговым ядром**\n\n"
-             "Выберите раздел:",
-        reply_markup=reply_markup,
+        "👑 *Админ-Меню Ядра*\n\n"
+        "Управление AI Core, LLM-обучением и синхронизацией.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
-@admin_only
-async def set_strategy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Установка/изменение стратегии через Supabase"""
-    if not context.args:
-        await update.message.reply_text(
-            "**Формат команды:**\n"
-            "`/set_strategy название параметры`\n\n"
-            "**Пример:**\n"
-            "`/set_strategy Aggressive_RSI rsi_period=14 rsi_oversold=30 volume_threshold=1.5`\n\n"
-            "**Доступные параметры:**\n"
-            "- `rsi_period`: период RSI (7-21)\n"
-            "- `rsi_oversold`: уровень перепроданности (20-40)\n"
-            "- `rsi_overbought`: уровень перекупленности (60-80)\n"
-            "- `macd_fast`: быстрая EMA (8-15)\n"
-            "- `macd_slow`: медленная EMA (20-30)\n"
-            "- `confidence_threshold`: мин. уверенность (50-90)\n"
-            "- `for_autotrade`: true/false"
-        )
-        return
+async def set_strategy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Парсинг и установка настроек стратегии."""
+    if not await admin_check(update, context): return
     
-    strategy_name = context.args[0]
-    parameters = {}
-    
-    # Парсинг параметров
-    for arg in context.args[1:]:
-        if '=' in arg:
-            key, value = arg.split('=', 1)
-            
-            # Преобразование значений
-            if value.lower() == 'true':
-                value = True
-            elif value.lower() == 'false':
-                value = False
-            else:
-                try:
-                    if '.' in value:
-                        value = float(value)
-                    else:
-                        value = int(value)
-                except ValueError:
-                    pass  # Оставляем как строку
-            
-            parameters[key] = value
-    
-    # Сохраняем в Supabase
+    # Пример: /set_strategy RSI=14, MACD_Fast=12, Min_Confidence=95
+    text = update.message.text
     try:
-        result = supabase.table("strategy_settings").upsert({
-            "admin_id": update.effective_user.id,
-            "strategy_name": strategy_name,
-            "parameters": parameters,
-            "is_active": True,
-            "for_autotrade": parameters.get("for_autotrade", False),
-            "updated_at": datetime.utcnow().isoformat()
-        }).execute()
-        
-        strategy_id = result.data[0]['id'] if result.data else "N/A"
-        
-        await update.message.reply_text(
-            f"✅ **Стратегия сохранена!**\n\n"
-            f"**ID:** {strategy_id}\n"
-            f"**Название:** {strategy_name}\n"
-            f"**Параметры:**\n```json\n{json.dumps(parameters, indent=2, ensure_ascii=False)}\n```\n\n"
-            f"Торговое ядро автоматически обновит настройки в течение 1 минуты.",
-            parse_mode='Markdown'
-        )
-        
-        logger.info(f"Стратегия сохранена в Supabase: {strategy_name}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка сохранения стратегии: {e}")
-        await update.message.reply_text(
-            f"❌ **Ошибка сохранения:**\n```\n{str(e)}\n```",
-            parse_mode='Markdown'
-        )
-
-@admin_only
-async def ai_reasoning_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать последние AI-рассуждения"""
-    limit = 5
-    if context.args and context.args[0].isdigit():
-        limit = min(int(context.args[0]), 20)
-    
-    try:
-        response = supabase.table("ai_logs") \
-            .select("*") \
-            .order("created_at", desc=True) \
-            .limit(limit) \
-            .execute()
-        
-        if not response.data:
-            await update.message.reply_text("🤷 Нет AI-рассуждений в базе.")
+        parts = text.split(maxsplit=1)
+        if len(parts) < 2:
+            await update.message.reply_text("💡 *Формат:* `/set_strategy RSI=14, MACD_Fast=12, ...`")
             return
-        
-        message = f"🧠 **Последние {len(response.data)} AI-рассуждений:**\n\n"
-        
-        for i, log in enumerate(response.data, 1):
-            signal_type = log.get('signal_type', 'Unknown')
-            confidence = log.get('confidence', 0) * 100
-            created_at = log.get('created_at', 'N/A')[:19]
             
-            message += f"**{i}. {signal_type.upper()}**\n"
-            message += f"   ⌚ {created_at}\n"
-            message += f"   🎯 Уверенность: {confidence:.1f}%\n"
+        settings_str = parts[1]
+        settings: Dict[str, Any] = {}
+        
+        for item in settings_str.split(','):
+            key_value = item.strip().split('=')
+            if len(key_value) == 2:
+                key = key_value[0].strip()
+                value_str = key_value[1].strip()
+                # Попытка преобразовать значение в число, иначе оставить строкой
+                try:
+                    settings[key] = float(value_str) if '.' in value_str else int(value_str)
+                except ValueError:
+                    settings[key] = value_str
+        
+        if not settings:
+            await update.message.reply_text("❌ Не удалось разобрать настройки. Проверьте формат.")
+            return
+
+        success = await db_core.save_strategy_settings(update.effective_user.id, settings)
+        
+        if success:
+            await update.message.reply_text(
+                "✅ *НАСТРОЙКИ СТРАТЕГИИ СОХРАНЕНЫ*\n\n"
+                f"Ядро PA начнет использовать новые параметры:\n`{json.dumps(settings, indent=2)}`",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text("❌ *Ошибка сохранения в Supabase*.")
             
-            reasoning = log.get('reasoning', '')
-            if reasoning:
-                # Обрезаем длинный текст
-                if len(reasoning) > 150:
-                    reasoning = reasoning[:150] + "..."
-                message += f"   💭 {reasoning}\n"
-            
-            message += f"   ────────\n"
-        
-        await update.message.reply_text(
-            text=message,
-            parse_mode='Markdown'
-        )
-        
     except Exception as e:
-        logger.error(f"Ошибка получения AI логов: {e}")
-        await update.message.reply_text(
-            f"❌ Ошибка: {str(e)}"
-        )
+        logger.error(f"Error processing set_strategy: {e}")
+        await update.message.reply_text("❌ Произошла внутренняя ошибка при обработке команды.")
 
-@admin_only
-async def chat_strategy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Чат с Claude о стратегиях"""
-    if not context.args:
-        await update.message.reply_text(
-            "💬 **Чат со стратегией**\n\n"
-            "Задайте вопрос о торговых стратегиях, AI-анализе или настройках ядра.\n\n"
-            "**Формат:** `/chat ваш вопрос`\n"
-            "**Примеры:**\n"
-            "• `/chat Как улучшить точность RSI стратегии?`\n"
-            "• `/chat Какие параметры MACD самые эффективные?`\n"
-            "• `/chat Проанализируй последние 10 сигналов`"
-        )
-        return
-    
-    question = " ".join(context.args)
-    
-    # Получаем текущие стратегии для контекста
-    try:
-        strategies = supabase.table("strategy_settings") \
-            .select("*") \
-            .eq("is_active", True) \
-            .execute()
-        
-        strategy_context = ""
-        if strategies.data:
-            strategy_context = "\n**Активные стратегии:**"
-            for strat in strategies.data:
-                strategy_context += f"\n- {strat['strategy_name']}: {strat.get('parameters', {})}"
-    except Exception as e:
-        strategy_context = f"\n⚠️ Не удалось загрузить стратегии: {e}"
-    
-    system_prompt = (
-        "Ты - AI-помощник для управления торговым ядром. "
-        "Отвечай кратко, технично, с фокусом на практическую реализацию. "
-        "Предлагай конкретные параметры для улучшения стратегий. "
-        "Если нужны данные из базы - скажи, какие именно."
-    )
-    
-    full_prompt = (
-        f"**Вопрос администратора:** {question}\n\n"
-        f"{strategy_context}\n\n"
-        f"Дай рекомендации по улучшению, настройке параметров или созданию новых стратегий. "
-        f"Если вопрос требует данных из базы - укажи, какие данные нужны для полного ответа."
-    )
-    
-    # Показываем "печатает..."
-    typing_msg = await update.message.reply_text("🤔 Claude думает...")
-    
-    # Вызываем Claude API
-    response = call_claude_api(full_prompt, system_prompt)
-    
-    # Удаляем сообщение "печатает..."
-    await typing_msg.delete()
-    
-    # Отправляем ответ
-    if response and not response.startswith("❌"):
-        await update.message.reply_text(
-            f"💡 **Claude отвечает:**\n\n{response}",
-            parse_mode='Markdown'
-        )
-    else:
-        await update.message.reply_text(
-            f"❌ **Ошибка API:**\n{response}"
-        )
-
-@admin_only
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка скриншотов от администратора"""
-    try:
-        # Получаем фото
-        photo = update.message.photo[-1]
-        file = await photo.get_file()
-        
-        # Здесь должна быть логика сохранения фото (в Supabase storage или другой сервис)
-        # Пока сохраняем только информацию о фото
-        
-        supabase.table("admin_screenshots").insert({
-            "admin_id": update.effective_user.id,
-            "file_id": file.file_id,
-            "caption": update.message.caption or "",
-            "analyzed": False,
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
-        
-        await update.message.reply_text(
-            "📸 **Скриншот сохранен!**\n\n"
-            "Ядро проанализирует его в течение нескольких минут.",
-            parse_mode='Markdown'
-        )
-        
-    except Exception as e:
-        logger.error(f"Ошибка обработки фото: {e}")
-        await update.message.reply_text(
-            f"❌ Ошибка обработки скриншота: {str(e)}"
-        )
-
-@admin_only
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать статистику ядра"""
-    try:
-        # Получаем общую статистику
-        signals_count = supabase.table("ai_signals") \
-            .select("id", count="exact") \
-            .execute()
-        
-        users_count = supabase.table("signal_requests") \
-            .select("user_id", count="exact") \
-            .execute()
-        
-        successful_signals = supabase.table("ai_signals") \
-            .select("id", count="exact") \
-            .gt("confidence", 0.7) \
-            .execute()
-        
-        message = (
-            "📊 **Статистика торгового ядра**\n\n"
-            f"• Всего сигналов: {signals_count.count or 0}\n"
-            f"• Успешных сигналов (confidence > 70%): {successful_signals.count or 0}\n"
-            f"• Активных пользователей: {users_count.count or 0}\n"
-            f"• Активных стратегий: {get_active_strategies_count()}\n\n"
-            "Для детальной статистики используйте /stats_detailed"
-        )
-        
-        await update.message.reply_text(message, parse_mode='Markdown')
-        
-    except Exception as e:
-        await update.message.reply_text(f"❌ Ошибка: {str(e)}")
-
-def get_active_strategies_count() -> int:
-    """Получить количество активных стратегий"""
-    try:
-        result = supabase.table("strategy_settings") \
-            .select("id", count="exact") \
-            .eq("is_active", True) \
-            .execute()
-        return result.count or 0
-    except:
-        return 0
-
-# ============== ОБРАБОТЧИКИ INLINE КНОПОК ==============
-@admin_only
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик inline-кнопок"""
+async def handle_admin_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    if not await admin_check(update, context): return
     
     data = query.data
     
-    if data == "strategies_menu":
-        await show_strategies_menu(query)
-    elif data == "ai_reasoning_menu":
-        await ai_reasoning_from_button(query)
-    elif data == "parser_menu":
-        await parser_menu(query)
-    elif data == "autotrade_menu":
-        await autotrade_menu(query)
-    elif data == "stats_menu":
-        await stats_from_button(query)
-    elif data == "chat_strategy":
-        await chat_strategy_from_button(query)
+    if data == 'admin_upload_photo':
+        await query.edit_message_text(
+            "⬆️ *Загрузка Скриншота*\n\n"
+            "Пришлите мне скриншот с подписью (опционально) для анализа ядром PA.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data='manager')]]),
+            parse_mode='Markdown'
+        )
+    elif data == 'admin_start_llm':
+        await query.edit_message_text(
+            "🧠 *Чат со Стратегией (LLM)*\n\n"
+            "Введите свой вопрос или инструкцию для AI (например: 'Повысить уверенность до 95%').",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data='manager')]]),
+            parse_mode='Markdown'
+        )
+        return WAITING_FOR_STRATEGY_INPUT
+    
+    elif data == 'manager':
+        # Возврат в админ-меню
+        await manager_command(update, context)
+
+
+# =========================== FSM (LLM Chat) ===========================
+
+async def llm_chat_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка ввода для LLM-чата."""
+    if not await admin_check(update, context): return
+    
+    user_input = update.message.text
+    user_id = update.effective_user.id
+    
+    # 1. Заглушка для LLM-логики
+    
+    # if ANTHROPIC_API_KEY:
+    #     client = Anthropic(api_key=ANTHROPIC_API_KEY)
+    #     prompt = f"{HUMAN_PROMPT} Текущие настройки стратегии: {current_settings}. Пользователь {user_id} говорит: '{user_input}'. Проанализируй и предложи изменения в формате JSON."
+    #     response = client.messages.create(
+    #         model="claude-3-sonnet-20240229", 
+    #         max_tokens=1000, 
+    #         messages=[{"role": "user", "content": prompt}]
+    #     ).content[0].text
+    # else:
+    response = "Извините, LLM-ключ не настроен. Но я бы ответил, что нужно повысить порог RSI до 75."
+
+    await update.message.reply_text(
+        f"🧠 *Ответ AI по стратегии:*\n\n"
+        f"```{response}```\n\n"
+        "Введите следующий вопрос или /manager для выхода.",
+        parse_mode='Markdown'
+    )
+    
+    return WAITING_FOR_STRATEGY_INPUT # Остаемся в состоянии чата
+
+# =========================== Хэндлер Фото ===========================
+
+async def handle_photo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка скриншота от администратора."""
+    if not await admin_check(update, context): return
+    
+    user_id = update.effective_user.id
+    message = update.effective_message
+    
+    # Получаем самое большое фото
+    photo = message.photo[-1]
+    file_id = photo.file_id
+    
+    # Получаем ссылку на файл (Telegram File API)
+    file_obj = await context.bot.get_file(file_id)
+    file_url = file_obj.file_path
+    
+    caption = message.caption or 'Нет подписи'
+    
+    # 1. Сохранение в Supabase
+    success = await db_core.save_screenshot(user_id, file_url, caption)
+    
+    if success:
+        await message.reply_text(
+            "✅ *Скриншот отправлен на анализ!*\n\n"
+            "Ядро PA получит ссылку и проанализирует изображение.\n"
+            f"URL: `{file_url}`\n"
+            f"Подпись: *{caption}*",
+            parse_mode='Markdown'
+        )
     else:
-        await query.edit_message_text("Неизвестная команда")
+        await message.reply_text("❌ *Ошибка сохранения скриншота в Supabase*.")
 
-async def show_strategies_menu(query):
-    """Меню стратегий"""
-    keyboard = [
-        [InlineKeyboardButton("📋 Список стратегий", callback_data="list_strategies")],
-        [InlineKeyboardButton("➕ Новая стратегия", callback_data="new_strategy")],
-        [InlineKeyboardButton("⚙️ Редактировать", callback_data="edit_strategy")],
-        [InlineKeyboardButton("📊 Тест стратегии", callback_data="test_strategy")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_main")]
-    ]
-    
-    await query.edit_message_text(
-        text="⚙️ **Управление стратегиями**\n\n"
-             "Выберите действие:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
 
-async def ai_reasoning_from_button(query):
-    """AI-рассуждения из кнопки"""
-    await query.edit_message_text(
-        text="📊 **AI-рассуждения**\n\n"
-             "Используйте команду:\n"
-             "`/ai_reasoning [количество]`\n\n"
-             "Пример: `/ai_reasoning 10`\n"
-             "Покажет последние 10 AI-рассуждений.",
-        parse_mode='Markdown'
-    )
+# =========================== ЗАПУСК БОТА ===========================
 
-async def parser_menu(query):
-    """Меню парсера"""
-    keyboard = [
-        [InlineKeyboardButton("📊 Статус парсера", callback_data="parser_status")],
-        [InlineKeyboardButton("🔄 Исторический парсинг", callback_data="parser_historical")],
-        [InlineKeyboardButton("⚙️ Настройки", callback_data="parser_settings")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_main")]
-    ]
-    
-    await query.edit_message_text(
-        text="🕵️ **Парсер Telegram чатов**\n\n"
-             "Мониторинг сигналов из ваших чатов.\n"
-             "Быстрый чат: постоянно\n"
-             "Премиум чат: раз в день + пре-сигналы",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
+async def set_admin_commands(application: Application):
+    """Установка команд бота."""
+    commands = [BotCommand(command, description) for command, description in [
+        ("manager", "👑 Главное меню администратора"),
+        ("set_strategy", "⚙️ Установить стратегию"),
+        ("chat", "🧠 Чат со Стратегией"),
+    ]]
+    await application.bot.set_my_commands(commands)
 
-async def autotrade_menu(query):
-    """Меню авто-торговли"""
-    keyboard = [
-        [InlineKeyboardButton("🚀 Запуск демо", callback_data="start_demo")],
-        [InlineKeyboardButton("⏸️ Пауза", callback_data="pause_autotrade")],
-        [InlineKeyboardButton("📊 Статистика", callback_data="autotrade_stats")],
-        [InlineKeyboardButton("⚙️ Настройки риска", callback_data="risk_settings")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_main")]
-    ]
-    
-    await query.edit_message_text(
-        text="🤖 **Авто-торговля**\n\n"
-             "Текущий статус: ⏸️ Неактивна\n"
-             "Исполнитель: Amvera\n"
-             "Режим: Демо",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
-
-async def stats_from_button(query):
-    """Статистика из кнопки"""
-    await query.edit_message_text(
-        text="📈 **Статистика**\n\n"
-             "Используйте команды:\n"
-             "• `/stats` - общая статистика\n"
-             "• `/stats_detailed` - детальная\n"
-             "• `/stats_signals` - по сигналам\n"
-             "• `/stats_users` - по пользователям",
-        parse_mode='Markdown'
-    )
-
-async def chat_strategy_from_button(query):
-    """Чат со стратегией из кнопки"""
-    await query.edit_message_text(
-        text="💬 **Чат со стратегией**\n\n"
-             "Используйте команду:\n"
-             "`/chat ваш вопрос`\n\n"
-             "Примеры вопросов:\n"
-             "• Как улучшить точность RSI?\n"
-             "• Какие лучшие параметры MACD?\n"
-             "• Проанализируй последние сигналы",
-        parse_mode='Markdown'
-    )
-
-# ============== ОСНОВНАЯ ФУНКЦИЯ ==============
 def main():
-    """Запуск бота #2"""
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).post_init(set_admin_commands).build()
     
-    # Команды
-    application.add_handler(CommandHandler("start", start_manager))
-    application.add_handler(CommandHandler("manager", start_manager))
-    application.add_handler(CommandHandler("set_strategy", set_strategy))
-    application.add_handler(CommandHandler("ai_reasoning", ai_reasoning_command))
-    application.add_handler(CommandHandler("chat", chat_strategy_command))
-    application.add_handler(CommandHandler("stats", stats_command))
+    # Хэндлер для основной команды менеджера
+    application.add_handler(CommandHandler("manager", manager_command))
+    application.add_handler(CommandHandler("set_strategy", set_strategy_command))
     
-    # Обработчики сообщений
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    # Хэндлер для фото (скриншотов)
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo_message))
+
+    # Хэндлер для FSM (LLM Chat)
+    llm_chat_handler = ConversationHandler(
+        entry_points=[CommandHandler("chat", llm_chat_input), CallbackQueryHandler(llm_chat_input, pattern='^admin_start_llm$')],
+        states={
+            WAITING_FOR_STRATEGY_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, llm_chat_input)],
+        },
+        fallbacks=[CommandHandler('manager', manager_command)]
+    )
+    application.add_handler(llm_chat_handler)
     
-    # Обработчики кнопок
-    application.add_handler(CallbackQueryHandler(button_handler))
+    # Хэндлер для CallbackQuery
+    application.add_handler(CallbackQueryHandler(handle_admin_callback_query))
     
-    # Запуск бота
-    logger.info("Bot #2 (Core Manager) starting...")
+    logger.info("🚀 Core Manager Bot is running...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':

@@ -108,7 +108,7 @@ nano .env
 Обязательные переменные:
 - `TELEGRAM_BOT_TOKEN_ADMIN` - токен бота от @BotFather
 - `SUPABASE_URL` - URL вашего Supabase проекта
-- `SUPABASE_KEY_FOR_ADMIN` - Service Role Key из Supabase
+- `SUPABASE_SERVICE_ROLE_KEY` - Service Role Key из Supabase (200+ символов)
 - `ADMIN_IDS` - список Telegram ID администраторов через запятую
 
 Опциональные переменные:

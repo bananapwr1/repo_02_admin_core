@@ -77,8 +77,8 @@ def check_environment_variables():
     
     # Проверка SUPABASE_KEY
     if not settings.SUPABASE_KEY:
-        print("❌ SUPABASE_KEY_FOR_ADMIN не установлен")
-        issues.append("SUPABASE_KEY_FOR_ADMIN")
+        print("❌ SUPABASE_SERVICE_ROLE_KEY не установлен")
+        issues.append("SUPABASE_SERVICE_ROLE_KEY")
     else:
         key_length = len(settings.SUPABASE_KEY)
         key_preview = settings.SUPABASE_KEY[:15] + "..." + settings.SUPABASE_KEY[-15:]
@@ -96,9 +96,9 @@ def check_environment_variables():
             print("      2. Выберите ваш проект")
             print("      3. Settings -> API")
             print("      4. Скопируйте 'service_role' key (НЕ 'anon' key!)")
-            print("      5. Вставьте его в .env как SUPABASE_KEY_FOR_ADMIN")
+            print("      5. Вставьте его в .env как SUPABASE_SERVICE_ROLE_KEY")
             print()
-            issues.append("SUPABASE_KEY_FOR_ADMIN (используется Anon Key вместо Service Role Key)")
+            issues.append("SUPABASE_SERVICE_ROLE_KEY (используется Anon Key вместо Service Role Key)")
         elif key_length >= 100 and key_length < 200:
             print("   ⚠️ Ключ короче обычного Service Role Key (обычно 200+ символов)")
             print("   Убедитесь, что это именно Service Role Key")
@@ -107,7 +107,7 @@ def check_environment_variables():
         
         if not settings.SUPABASE_KEY.startswith("eyJ"):
             print("   ⚠️ Service Role Key обычно начинается с 'eyJ'")
-            issues.append("SUPABASE_KEY_FOR_ADMIN (необычный формат)")
+            issues.append("SUPABASE_SERVICE_ROLE_KEY (необычный формат)")
     
     # Проверка ADMIN_IDS
     if not settings.ADMIN_IDS:
@@ -267,7 +267,7 @@ def print_solution_steps():
     print()
     print("2. ОБНОВЛЕНИЕ .env ФАЙЛА:")
     print("   - Откройте файл .env в корне проекта")
-    print("   - Найдите строку SUPABASE_KEY_FOR_ADMIN=...")
+    print("   - Найдите строку SUPABASE_SERVICE_ROLE_KEY=...")
     print("   - Вставьте скопированный Service Role Key")
     print("   - Сохраните файл")
     print()

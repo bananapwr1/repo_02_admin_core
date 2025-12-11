@@ -73,7 +73,7 @@ class SupabaseConnector:
                     # Если ошибка связана с API key
                     if "Invalid API key" in str(test_error) or "JWT" in str(test_error):
                         raise ValueError(
-                            f"❌ Неверный API ключ! Проверьте SUPABASE_KEY_FOR_ADMIN в .env файле. "
+                            f"❌ Неверный API ключ! Проверьте SUPABASE_SERVICE_ROLE_KEY в .env файле. "
                             f"Убедитесь, что используете Service Role Key, а не Anon Key. "
                             f"Ошибка: {test_error}"
                         )
@@ -122,10 +122,17 @@ class SupabaseConnector:
     
     # ==================== УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ====================
     
-    async def get_all_users(self) -> List[Dict[str, Any]]:
-        """Получить список всех пользователей"""
+    async def get_all_users(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Получить список всех пользователей
+        Args:
+            limit: Ограничение количества записей (None = все)
+        """
         try:
-            response = self.client.table("users").select("*").execute()
+            query = self.client.table("users").select("*").order("created_at", desc=True)
+            if limit:
+                query = query.limit(limit)
+            response = query.execute()
             return response.data if response.data else []
         except Exception as e:
             logger.error(f"Ошибка получения пользователей: {e}")
@@ -299,6 +306,72 @@ class SupabaseConnector:
         except Exception as e:
             logger.error(f"Ошибка получения статистики: {e}")
             return {}
+    
+    # ==================== ФИЛЬТРАЦИЯ ДАННЫХ ПО ДАТАМ ====================
+    
+    async def get_signals_by_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        asset: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Получить сигналы за период времени
+        Args:
+            start_date: Начальная дата (ISO формат)
+            end_date: Конечная дата (ISO формат)
+            asset: Фильтр по активу (опционально)
+        """
+        try:
+            query = (
+                self.client.table("signals")
+                .select("*")
+                .gte("created_at", start_date)
+                .lte("created_at", end_date)
+            )
+            
+            if asset:
+                query = query.eq("asset", asset)
+            
+            response = query.order("created_at", desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            logger.error(f"Ошибка получения сигналов за период: {e}")
+            return []
+    
+    async def get_trades_by_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        asset: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Получить трейды за период времени
+        Args:
+            start_date: Начальная дата (ISO формат)
+            end_date: Конечная дата (ISO формат)
+            asset: Фильтр по активу (опционально)
+            status: Фильтр по статусу (опционально)
+        """
+        try:
+            query = (
+                self.client.table("trades")
+                .select("*")
+                .gte("created_at", start_date)
+                .lte("created_at", end_date)
+            )
+            
+            if asset:
+                query = query.eq("asset", asset)
+            if status:
+                query = query.eq("status", status)
+            
+            response = query.order("created_at", desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            logger.error(f"Ошибка получения трейдов за период: {e}")
+            return []
     
     # ==================== НАСТРОЙКИ БОТА ====================
     

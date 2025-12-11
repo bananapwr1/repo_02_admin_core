@@ -454,13 +454,16 @@ class DataAggregationService:
         start_date: datetime, 
         end_date: datetime
     ) -> List[Dict]:
-        """Получить сигналы за период (заглушка для будущей реализации)"""
-        # TODO: Реализовать когда появится таблица signals с фильтрами
+        """Получить сигналы за период"""
         try:
-            # Пока возвращаем пустой список, т.к. метод фильтрации по дате еще не реализован
-            return []
+            signals = await db.get_signals_by_date_range(
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                asset=asset
+            )
+            return signals
         except Exception as e:
-            logger.error(f"Ошибка получения сигналов: {e}")
+            logger.error(f"Ошибка получения сигналов для {asset}: {e}")
             return []
     
     async def _get_trades_for_period(
@@ -469,12 +472,16 @@ class DataAggregationService:
         start_date: datetime, 
         end_date: datetime
     ) -> List[Dict]:
-        """Получить трейды за период (заглушка для будущей реализации)"""
-        # TODO: Реализовать когда появится метод фильтрации по дате
+        """Получить трейды за период"""
         try:
-            return []
+            trades = await db.get_trades_by_date_range(
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+                asset=asset
+            )
+            return trades
         except Exception as e:
-            logger.error(f"Ошибка получения трейдов: {e}")
+            logger.error(f"Ошибка получения трейдов для {asset}: {e}")
             return []
     
     def _is_cache_valid(self, key: str) -> bool:

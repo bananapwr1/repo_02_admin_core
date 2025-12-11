@@ -42,7 +42,7 @@ nano .env
 ```env
 TELEGRAM_BOT_TOKEN_ADMIN=ваш_токен_бота
 SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_KEY_FOR_ADMIN=ваш_service_role_key
+SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key
 ADMIN_IDS=ваш_telegram_id
 ```
 

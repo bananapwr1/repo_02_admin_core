@@ -16,7 +16,7 @@ class Settings:
     
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY_FOR_ADMIN", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     
     # OpenAI для AI-чата стратегий
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
@@ -39,7 +39,7 @@ class Settings:
         if not cls.TELEGRAM_BOT_TOKEN:
             raise ValueError("TELEGRAM_BOT_TOKEN_ADMIN не установлен")
         if not cls.SUPABASE_URL or not cls.SUPABASE_KEY:
-            raise ValueError("SUPABASE_URL или SUPABASE_KEY_FOR_ADMIN не установлены")
+            raise ValueError("SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY не установлены")
         if not cls.ADMIN_IDS:
             print("⚠️ ADMIN_IDS не установлен, все пользователи будут иметь доступ!")
         return True

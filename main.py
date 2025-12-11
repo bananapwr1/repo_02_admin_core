@@ -3,6 +3,7 @@ import os
 import asyncio
 import logging
 import time
+from typing import Optional
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from supabase import create_client, Client
@@ -14,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 TELEGRAM_BOT_TOKEN_ADMIN = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN")
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY_FOR_ADMIN") 
 
 supabase: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_KEY)

@@ -1,4 +1,14 @@
-python-telegram-bot
-python-dotenv
-supabase
-pandas
+# Telegram Bot Framework
+python-telegram-bot>=20.7
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Supabase Client
+supabase>=2.3.0
+
+# Data Processing
+pandas>=2.0.0
+
+# HTTP Requests
+httpx>=0.25.0

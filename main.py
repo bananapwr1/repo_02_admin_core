@@ -18,7 +18,16 @@ TELEGRAM_BOT_TOKEN_ADMIN = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY_FOR_ADMIN") 
 
-supabase: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Инициализация Supabase клиента
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("✅ Supabase client initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Supabase client: {e}")
+else:
+    logger.warning("⚠️ Supabase credentials not found. Bot will run without database.")
 
 # --- Логика ИИ и Генерации Стратегии (НОВАЯ ФУНКЦИЯ) ---
 
@@ -50,7 +59,7 @@ async def generate_new_strategy():
         }
 
         # 4. Запись в Supabase (отключаем старые, включаем новую)
-        supabase.table("strategy_settings").update({"is_active": False}).execute()
+        supabase.table("strategy_settings").update({"is_active": False}).eq("is_active", True).execute()
         supabase.table("strategy_settings").insert(new_strategy).execute()
         
         logger.info(f"✅ New strategy '{new_strategy['name']}' deployed to Supabase.")
@@ -62,15 +71,87 @@ async def generate_new_strategy():
 
 async def manage_strategy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обрабатывает команду /ai_run (запуск генерации алгоритма)."""
+    if not supabase:
+        await update.message.reply_text("❌ Supabase не подключен. Проверьте настройки переменных окружения.")
+        return
+    
     await update.message.reply_text("⏳ Запускаю тяжелый процесс AI-анализа и генерации новой стратегии. Это может занять несколько минут...")
     
-    # Запускаем тяжелый процесс в отдельном потоке, чтобы не блокировать Telegram
-    await asyncio.to_thread(asyncio.run, generate_new_strategy()) 
+    try:
+        # Запускаем генерацию стратегии
+        await generate_new_strategy()
+        await update.message.reply_text("✅ Генерация стратегии завершена! Ядро Render начнет использовать новый алгоритм в следующем цикле.")
+    except Exception as e:
+        logger.error(f"❌ Error in manage_strategy_command: {e}")
+        await update.message.reply_text(f"❌ Ошибка при генерации стратегии: {str(e)}")
+
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает команду /start."""
+    welcome_message = (
+        "🤖 **Admin Bot для управления торговыми стратегиями**\n\n"
+        "Доступные команды:\n"
+        "/start - Показать это сообщение\n"
+        "/ai_run - Запустить генерацию новой стратегии\n"
+        "/status - Проверить статус подключений\n"
+        "/view_strategies - Показать все стратегии\n"
+    )
+    await update.message.reply_text(welcome_message, parse_mode='Markdown')
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Проверяет статус подключений."""
+    status_msg = "📊 **Статус системы:**\n\n"
     
-    await update.message.reply_text("✅ Генерация стратегии завершена! Ядро Render начнет использовать новый алгоритм в следующем цикле.")
+    # Проверка Telegram Bot
+    status_msg += "✅ Telegram Bot: Подключен\n"
+    
+    # Проверка Supabase
+    if supabase:
+        try:
+            # Пытаемся сделать простой запрос
+            response = supabase.table("strategy_settings").select("count", count="exact").execute()
+            status_msg += f"✅ Supabase: Подключен (стратегий: {response.count or 0})\n"
+        except Exception as e:
+            status_msg += f"⚠️ Supabase: Ошибка - {str(e)}\n"
+    else:
+        status_msg += "❌ Supabase: Не подключен\n"
+    
+    # Проверка переменных окружения
+    status_msg += f"\n🔐 **Переменные окружения:**\n"
+    status_msg += f"TELEGRAM_BOT_TOKEN_ADMIN: {'✅' if TELEGRAM_BOT_TOKEN_ADMIN else '❌'}\n"
+    status_msg += f"SUPABASE_URL: {'✅' if SUPABASE_URL else '❌'}\n"
+    status_msg += f"SUPABASE_KEY: {'✅' if SUPABASE_KEY else '❌'}\n"
+    
+    await update.message.reply_text(status_msg, parse_mode='Markdown')
 
 
-# Здесь будут остальные админ-команды: /view_logs, /view_users, /block_user
+async def view_strategies_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Показывает все стратегии из базы данных."""
+    if not supabase:
+        await update.message.reply_text("❌ Supabase не подключен.")
+        return
+    
+    try:
+        response = supabase.table("strategy_settings").select("*").execute()
+        
+        if not response.data:
+            await update.message.reply_text("📭 Стратегий пока нет в базе данных.")
+            return
+        
+        strategies_msg = "📋 **Активные стратегии:**\n\n"
+        for strategy in response.data:
+            status_icon = "🟢" if strategy.get("is_active") else "⚪"
+            strategies_msg += f"{status_icon} **{strategy.get('name', 'Unnamed')}**\n"
+            strategies_msg += f"  Assets: {', '.join(strategy.get('assets_to_monitor', []))}\n"
+            strategies_msg += f"  Amount: ${strategy.get('default_amount', 0)}\n"
+            strategies_msg += f"  Timeframe: {strategy.get('default_timeframe', 0)}s\n"
+            strategies_msg += f"  Rules: {strategy.get('algorithm_rules', 'N/A')}\n\n"
+        
+        await update.message.reply_text(strategies_msg, parse_mode='Markdown')
+    except Exception as e:
+        logger.error(f"❌ Error viewing strategies: {e}")
+        await update.message.reply_text(f"❌ Ошибка при получении стратегий: {str(e)}")
 
 def run_admin_bot():
     """Запускает Telegram-бот."""
@@ -78,9 +159,16 @@ def run_admin_bot():
         logger.error("🚫 TELEGRAM_BOT_TOKEN_ADMIN не задан.")
         return
 
+    logger.info("🚀 Starting Admin Bot...")
     application = Application.builder().token(TELEGRAM_BOT_TOKEN_ADMIN).build()
-    application.add_handler(CommandHandler("ai_run", manage_strategy_command))
     
+    # Регистрация обработчиков команд
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("ai_run", manage_strategy_command))
+    application.add_handler(CommandHandler("status", status_command))
+    application.add_handler(CommandHandler("view_strategies", view_strategies_command))
+    
+    logger.info("✅ Admin Bot started successfully!")
     application.run_polling(poll_interval=1.0)
 
 

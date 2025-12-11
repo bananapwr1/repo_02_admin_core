@@ -2,12 +2,14 @@
 Обработчик настроек бота
 """
 import logging
+import json
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from database import db
 from config.settings import settings
+from keyboards import get_core_settings_keyboard
+from services.core_settings_service import get_core_settings_service
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -15,52 +17,41 @@ router = Router()
 
 class SettingsStates(StatesGroup):
     """Состояния для настроек"""
-    editing_name = State()
-    editing_welcome = State()
+    editing_secret_value = State()
 
 
-@router.message(F.text == "⚙️ Настройки")
+SUPPORTED_SECRETS: dict[str, dict[str, str]] = {
+    "openai_api_key": {"title": "OpenAI API Key", "hint": "Вставьте ключ (строка)."},
+    "exchange_credentials": {"title": "Exchange credentials", "hint": "Вставьте JSON или строку (например api_key/secret)."},
+}
+
+
+def _mask(value: str | None, keep: int = 4) -> str:
+    if not value:
+        return "—"
+    if len(value) <= keep * 2:
+        return "*" * len(value)
+    return f"{value[:keep]}***{value[-keep:]}"
+
+
+@router.message(F.text == "⚙️ Настройки Бота Ядра")
 async def settings_menu(message: Message):
-    """Меню настроек"""
-    bot_settings = await db.get_bot_settings()
-    
-    text = f"""
-⚙️ <b>Настройки бота</b>
-
-📛 Название: {bot_settings.get('name', settings.BOT_NAME) if bot_settings else settings.BOT_NAME}
-👋 Приветствие: {bot_settings.get('welcome_message', settings.WELCOME_MESSAGE)[:50] if bot_settings else settings.WELCOME_MESSAGE[:50]}...
-
-<i>Выберите параметр для редактирования:</i>
-"""
-    
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📛 Изменить название", callback_data="settings_edit_name")],
-        [InlineKeyboardButton(text="👋 Изменить приветствие", callback_data="settings_edit_welcome")],
-        [InlineKeyboardButton(text="ℹ️ Системная информация", callback_data="settings_info")],
-        [InlineKeyboardButton(text="🔙 Главное меню", callback_data="main_menu")]
-    ])
-    
-    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
+    """Меню настроек Ядра"""
+    text = (
+        "⚙️ <b>Настройки Бота Ядра</b>\n\n"
+        "Раздел для управления внутренними настройками и секретами (ключи/токены).\n"
+    )
+    await message.answer(text, reply_markup=get_core_settings_keyboard(), parse_mode="HTML")
 
 
-@router.message(F.text == "ℹ️ Помощь")
-async def help_menu(message: Message):
-    """Помощь"""
-    from handlers.start_handler import cmd_help
-    await cmd_help(message)
-
-
-@router.callback_query(F.data == "settings_info")
+@router.callback_query(F.data == "core_settings_info")
 async def show_system_info(callback: CallbackQuery):
     """Показать системную информацию"""
     await callback.answer()
     
     import sys
     import aiogram
-    
-    stats = await db.get_trading_statistics()
-    
+
     text = f"""
 ℹ️ <b>Системная информация</b>
 
@@ -73,52 +64,116 @@ async def show_system_info(callback: CallbackQuery):
 ├ Supabase: ✅ Подключено
 └ URL: {settings.SUPABASE_URL}
 
-<b>AI:</b>
-├ OpenAI: {"✅ Настроен" if settings.OPENAI_API_KEY else "❌ Не настроен"}
-└ Модель: {settings.OPENAI_MODEL if settings.OPENAI_API_KEY else "N/A"}
+<b>Шифрование:</b>
+└ ENCRYPTION_KEY: {"✅ Настроен" if settings.ENCRYPTION_KEY else "❌ Не настроен"}
 
-<b>Администраторы:</b>
-└ Количество: {len(settings.ADMIN_IDS)}
-
-<b>Статистика:</b>
-├ Пользователей: {stats.get('active_users', 0)}
-├ Сигналов: {stats.get('total_signals', 0)}
-└ Трейдов: {stats.get('total_trades', 0)}
+<b>Администратор:</b>
+└ ADMIN_USER_ID: {settings.ADMIN_USER_ID or "N/A"}
 """
-    
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="settings_menu")]
-    ])
-    
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    await callback.message.edit_text(text, reply_markup=get_core_settings_keyboard(), parse_mode="HTML")
 
 
-@router.callback_query(F.data == "settings_menu")
-async def back_to_settings(callback: CallbackQuery):
-    """Вернуться в настройки"""
+@router.callback_query(F.data == "core_settings_secrets")
+async def core_secrets_menu(callback: CallbackQuery):
+    """Просмотр/изменение секретов Ядра (шифруются)"""
     await callback.answer()
-    
-    bot_settings = await db.get_bot_settings()
-    
-    text = f"""
-⚙️ <b>Настройки бота</b>
+    service = get_core_settings_service()
+    enc_ok = service.is_encryption_available()
 
-📛 Название: {bot_settings.get('name', settings.BOT_NAME) if bot_settings else settings.BOT_NAME}
-👋 Приветствие: {bot_settings.get('welcome_message', settings.WELCOME_MESSAGE)[:50] if bot_settings else settings.WELCOME_MESSAGE[:50]}...
+    lines: list[str] = [
+        "🔑 <b>Ключи/Токены (секреты)</b>",
+        "",
+        f"🔐 Шифрование: {'✅ доступно' if enc_ok else '❌ недоступно (нужен ENCRYPTION_KEY)'}",
+        "",
+        "<b>Env (только просмотр):</b>",
+        f"• SUPABASE_SERVICE_ROLE_KEY: {_mask(settings.SUPABASE_KEY)}",
+        f"• OPENAI_API_KEY: {_mask(settings.OPENAI_API_KEY)}",
+        "",
+        "<b>Supabase (core_settings):</b>",
+    ]
 
-<i>Выберите параметр для редактирования:</i>
-"""
-    
+    for key, meta in SUPPORTED_SECRETS.items():
+        current = await service.get_secret(key) if enc_ok else None
+        status = "✅ задан" if current else "—"
+        lines.append(f"• {meta['title']}: {status} ({_mask(current)})")
+
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📛 Изменить название", callback_data="settings_edit_name")],
-        [InlineKeyboardButton(text="👋 Изменить приветствие", callback_data="settings_edit_welcome")],
-        [InlineKeyboardButton(text="ℹ️ Системная информация", callback_data="settings_info")],
-        [InlineKeyboardButton(text="🔙 Главное меню", callback_data="main_menu")]
-    ])
-    
-    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    rows = []
+    for key, meta in SUPPORTED_SECRETS.items():
+        rows.append([InlineKeyboardButton(text=f"✏️ Установить: {meta['title']}", callback_data=f"core_settings_set_{key}")])
+    rows.append([InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")])
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith("core_settings_set_"))
+async def core_secret_set_prompt(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    key = callback.data.replace("core_settings_set_", "")
+    meta = SUPPORTED_SECRETS.get(key)
+    if not meta:
+        await callback.answer("❌ Неизвестный ключ", show_alert=True)
+        return
+
+    service = get_core_settings_service()
+    if not service.is_encryption_available():
+        await callback.answer("❌ ENCRYPTION_KEY не настроен", show_alert=True)
+        return
+
+    await state.set_state(SettingsStates.editing_secret_value)
+    await state.update_data(secret_key=key)
+
+    await callback.message.edit_text(
+        f"✏️ <b>Установка секрета:</b> {meta['title']}\n\n"
+        f"{meta['hint']}\n\n"
+        "<i>Отправьте значение одним сообщением. Для отмены: /menu</i>",
+        parse_mode="HTML",
+    )
+
+
+@router.message(SettingsStates.editing_secret_value)
+async def core_secret_set_apply(message: Message, state: FSMContext):
+    data = await state.get_data()
+    key = data.get("secret_key")
+    meta = SUPPORTED_SECRETS.get(key or "")
+    if not key or not meta:
+        await state.clear()
+        await message.answer("❌ Состояние потеряно. Откройте /menu и попробуйте ещё раз.")
+        return
+
+    value = (message.text or "").strip()
+    if not value:
+        await message.answer("❌ Пустое значение. Отправьте ещё раз:")
+        return
+
+    if key == "exchange_credentials" and value.startswith("{"):
+        try:
+            json.loads(value)
+        except Exception:
+            await message.answer("❌ Невалидный JSON. Исправьте и отправьте ещё раз:")
+            return
+
+    service = get_core_settings_service()
+    ok = await service.set_secret(key, value)
+    await state.clear()
+
+    if ok:
+        await message.answer(
+            f"✅ <b>Секрет сохранён:</b> {meta['title']}\n\n"
+            "Сохранено в Supabase в зашифрованном виде.",
+            reply_markup=get_core_settings_keyboard(),
+            parse_mode="HTML",
+        )
+    else:
+        await message.answer(
+            "❌ Не удалось сохранить секрет. Проверьте ENCRYPTION_KEY и таблицу core_settings в Supabase.",
+            reply_markup=get_core_settings_keyboard(),
+            parse_mode="HTML",
+        )
 
 
 @router.callback_query(F.data == "main_menu")

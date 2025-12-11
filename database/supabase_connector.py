@@ -15,11 +15,17 @@ logger = logging.getLogger(__name__)
 class SupabaseConnector:
     """Класс для взаимодействия с Supabase"""
     
-    def __init__(self):
+    def __init__(self, auto_connect: bool = True):
         self.client: Optional[Client] = None
         self.max_retries = 3
         self.retry_delay = 2  # секунды
-        self._connect()
+        if auto_connect:
+            self._connect()
+
+    def _ensure_connected(self):
+        """Ленивая инициализация клиента (чтобы импорт модулей не падал без env)."""
+        if self.client is None:
+            self._connect()
     
     def _validate_credentials(self):
         """Валидация учетных данных Supabase"""
@@ -141,6 +147,7 @@ class SupabaseConnector:
             limit: Ограничение количества записей (None = все)
         """
         try:
+            self._ensure_connected()
             query = self.client.table("users").select("*").order("created_at", desc=True)
             if limit:
                 query = query.limit(limit)
@@ -161,6 +168,7 @@ class SupabaseConnector:
     async def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Получить пользователя по ID"""
         try:
+            self._ensure_connected()
             response = self.client.table("users").select("*").eq("telegram_id", user_id).execute()
             return response.data[0] if response.data else None
         except Exception as e:
@@ -170,6 +178,7 @@ class SupabaseConnector:
     async def update_user_status(self, user_id: int, is_blocked: bool) -> bool:
         """Блокировка/разблокировка пользователя"""
         try:
+            self._ensure_connected()
             self.client.table("users").update({"is_blocked": is_blocked}).eq("telegram_id", user_id).execute()
             status = "заблокирован" if is_blocked else "разблокирован"
             logger.info(f"Пользователь {user_id} {status}")
@@ -186,6 +195,7 @@ class SupabaseConnector:
     ) -> bool:
         """Обновить подписку пользователя"""
         try:
+            self._ensure_connected()
             self.client.table("users").update({
                 "subscription_type": subscription_type,
                 "subscription_expires_at": expires_at
@@ -207,6 +217,7 @@ class SupabaseConnector:
     ) -> bool:
         """Создать токен приглашения"""
         try:
+            self._ensure_connected()
             self.client.table("invite_tokens").insert({
                 "token": token,
                 "max_uses": max_uses,
@@ -234,6 +245,7 @@ class SupabaseConnector:
     async def get_all_tokens(self) -> List[Dict[str, Any]]:
         """Получить все токены"""
         try:
+            self._ensure_connected()
             response = self.client.table("invite_tokens").select("*").execute()
             return response.data if response.data else []
         except Exception as e:
@@ -251,6 +263,7 @@ class SupabaseConnector:
     async def deactivate_token(self, token: str) -> bool:
         """Деактивировать токен"""
         try:
+            self._ensure_connected()
             self.client.table("invite_tokens").update({"is_active": False}).eq("token", token).execute()
             return True
         except Exception as e:
@@ -262,6 +275,7 @@ class SupabaseConnector:
     async def get_all_strategies(self) -> List[Dict[str, Any]]:
         """Получить все стратегии"""
         try:
+            self._ensure_connected()
             response = self.client.table("strategies").select("*").order("created_at", desc=True).execute()
             return response.data if response.data else []
         except Exception as e:
@@ -279,6 +293,7 @@ class SupabaseConnector:
     async def get_active_strategy(self) -> Optional[Dict[str, Any]]:
         """Получить активную стратегию"""
         try:
+            self._ensure_connected()
             response = self.client.table("strategies").select("*").eq("is_active", True).execute()
             return response.data[0] if response.data else None
         except Exception as e:
@@ -288,6 +303,7 @@ class SupabaseConnector:
     async def create_strategy(self, strategy_data: Dict[str, Any]) -> bool:
         """Создать новую стратегию"""
         try:
+            self._ensure_connected()
             # Деактивируем все предыдущие стратегии
             if strategy_data.get("is_active", False):
                 self.client.table("strategies").update({"is_active": False}).neq("id", 0).execute()
@@ -313,6 +329,7 @@ class SupabaseConnector:
     async def update_strategy_status(self, strategy_id: int, is_active: bool) -> bool:
         """Обновить статус стратегии"""
         try:
+            self._ensure_connected()
             if is_active:
                 # Деактивируем все другие
                 self.client.table("strategies").update({"is_active": False}).neq("id", strategy_id).execute()
@@ -322,12 +339,25 @@ class SupabaseConnector:
         except Exception as e:
             logger.error(f"Ошибка обновления статуса стратегии: {e}")
             return False
+
+    async def update_strategy(self, strategy_id: int, updates: Dict[str, Any]) -> bool:
+        """Обновить поля стратегии (кроме статуса)."""
+        try:
+            self._ensure_connected()
+            if not updates:
+                return True
+            self.client.table("strategies").update(updates).eq("id", strategy_id).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка обновления стратегии {strategy_id}: {e}")
+            return False
     
     # ==================== ЛОГИ И МОНИТОРИНГ ====================
     
     async def get_system_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Получить системные логи"""
         try:
+            self._ensure_connected()
             response = self.client.table("system_logs").select("*").order("created_at", desc=True).limit(limit).execute()
             return response.data if response.data else []
         except Exception as e:
@@ -337,6 +367,7 @@ class SupabaseConnector:
     async def get_decision_logs(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Получить логи принятия решений AI"""
         try:
+            self._ensure_connected()
             response = self.client.table("decision_logs").select("*").order("created_at", desc=True).limit(limit).execute()
             return response.data if response.data else []
         except Exception as e:
@@ -346,6 +377,7 @@ class SupabaseConnector:
     async def get_trading_statistics(self) -> Dict[str, Any]:
         """Получить общую статистику трейдинга"""
         try:
+            self._ensure_connected()
             # Получаем данные о сигналах
             signals = self.client.table("signals").select("*").execute()
             
@@ -379,6 +411,7 @@ class SupabaseConnector:
             asset: Фильтр по активу (опционально)
         """
         try:
+            self._ensure_connected()
             query = (
                 self.client.table("signals")
                 .select("*")
@@ -411,6 +444,7 @@ class SupabaseConnector:
             status: Фильтр по статусу (опционально)
         """
         try:
+            self._ensure_connected()
             query = (
                 self.client.table("trades")
                 .select("*")
@@ -434,6 +468,7 @@ class SupabaseConnector:
     async def get_bot_settings(self) -> Optional[Dict[str, Any]]:
         """Получить настройки бота"""
         try:
+            self._ensure_connected()
             response = self.client.table("bot_settings").select("*").limit(1).execute()
             return response.data[0] if response.data else None
         except Exception as e:
@@ -443,6 +478,7 @@ class SupabaseConnector:
     async def update_bot_settings(self, settings_data: Dict[str, Any]) -> bool:
         """Обновить настройки бота"""
         try:
+            self._ensure_connected()
             # Проверяем, есть ли запись
             existing = await self.get_bot_settings()
             if existing:
@@ -454,6 +490,36 @@ class SupabaseConnector:
             logger.error(f"Ошибка обновления настроек: {e}")
             return False
 
+    # ==================== ВНУТРЕННИЕ НАСТРОЙКИ/СЕКРЕТЫ ЯДРА ====================
+
+    async def get_core_setting(self, key: str) -> Optional[Dict[str, Any]]:
+        """Получить запись core_settings по ключу."""
+        try:
+            self._ensure_connected()
+            response = self.client.table("core_settings").select("*").eq("key", key).limit(1).execute()
+            return response.data[0] if response.data else None
+        except Exception as e:
+            logger.error(f"Ошибка получения core_settings[{key}]: {e}")
+            return None
+
+    async def set_core_setting(self, key: str, value_encrypted: str) -> bool:
+        """Создать/обновить запись core_settings (value_encrypted)."""
+        try:
+            self._ensure_connected()
+            existing = await self.get_core_setting(key)
+            if existing:
+                self.client.table("core_settings").update(
+                    {"value_encrypted": value_encrypted}
+                ).eq("id", existing["id"]).execute()
+            else:
+                self.client.table("core_settings").insert(
+                    {"key": key, "value_encrypted": value_encrypted}
+                ).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка сохранения core_settings[{key}]: {e}")
+            return False
+
 
 # Singleton
-db = SupabaseConnector()
+db = SupabaseConnector(auto_connect=False)

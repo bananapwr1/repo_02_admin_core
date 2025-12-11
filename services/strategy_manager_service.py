@@ -281,6 +281,8 @@ class StrategyManagerService:
                     
                     # Отправляем уведомление
                     await self.notification_service.notify_strategy_created(name, strategy_id)
+                    if is_active:
+                        await self.notification_service.notify_strategy_activated(name, strategy_id)
                     
                     return strategy_id
             
@@ -458,6 +460,30 @@ class StrategyManagerService:
                 
         except Exception as e:
             logger.error(f"❌ Ошибка переключения статуса стратегии {strategy_id}: {e}")
+            return False
+
+    async def update_strategy(self, strategy_id: int, updates: Dict[str, Any]) -> bool:
+        """
+        Обновить стратегию (с поддержкой шифрования конфиденциальных полей).
+        Обновляет только переданные поля.
+        """
+        try:
+            if not updates:
+                return True
+
+            # Конвертируем "обычные" конфиденциальные поля в *_encrypted
+            prepared = self._encrypt_sensitive_data(updates)
+
+            success = await db.update_strategy(strategy_id, prepared)
+            if not success:
+                return False
+
+            logger.info(f"✅ Стратегия {strategy_id} обновлена")
+            return True
+        except Exception as e:
+            error_msg = f"Ошибка обновления стратегии {strategy_id}: {e}"
+            logger.error(f"❌ {error_msg}")
+            await self.notification_service.notify_error(error_msg, "STRATEGY_UPDATE")
             return False
 
 

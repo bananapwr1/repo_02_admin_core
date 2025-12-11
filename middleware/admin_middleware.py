@@ -29,10 +29,14 @@ class AdminMiddleware(BaseMiddleware):
         else:
             return await handler(event, data)
         
-        # Если список админов пуст, пропускаем всех (режим отладки)
+        # Доступ строго администраторам из конфигурации
         if not settings.ADMIN_IDS:
-            logger.warning(f"⚠️ ADMIN_IDS не установлен! Пользователь {user_id} получил доступ")
-            return await handler(event, data)
+            logger.error("❌ ADMIN_USER_ID/ADMIN_IDS не настроен — блокируем доступ по умолчанию")
+            if isinstance(event, Message):
+                await event.answer("🚫 Доступ запрещён. Администратор не настроен.")
+            elif isinstance(event, CallbackQuery):
+                await event.answer("🚫 Доступ запрещён.", show_alert=True)
+            return
         
         # Проверяем права
         if user_id not in settings.ADMIN_IDS:

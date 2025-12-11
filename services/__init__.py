@@ -10,6 +10,7 @@ from .strategy_manager_service import (
     EncryptionService,
     get_strategy_manager
 )
+from .core_settings_service import CoreSettingsService, get_core_settings_service
 
 __all__ = [
     # AI Services
@@ -23,4 +24,8 @@ __all__ = [
     "StrategyManagerService",
     "EncryptionService",
     "get_strategy_manager",
+    
+    # Внутренние настройки/секреты Ядра
+    "CoreSettingsService",
+    "get_core_settings_service",
 ]

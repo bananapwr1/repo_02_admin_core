@@ -15,6 +15,11 @@ class Settings:
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN", "")
     ADMIN_CHAT_ID: Optional[int] = int(os.getenv("ADMIN_CHAT_ID", "0")) if os.getenv("ADMIN_CHAT_ID") else None
     
+    # Единственный администратор (Repo 02 должен быть доступен только ему)
+    ADMIN_USER_ID: Optional[int] = (
+        int(os.getenv("ADMIN_USER_ID", "0")) if os.getenv("ADMIN_USER_ID") else None
+    )
+    
     # Supabase - ВАЖНО: используется Service Role Key для полного доступа
     # Admin Core (Repo 02) требует Service Role Key для управления всеми данными
     # UI/Trading Bot (Repo 01) использует NEXT_PUBLIC_SUPABASE_KEY (ограниченный доступ)
@@ -28,12 +33,19 @@ class Settings:
     # Ключ шифрования для конфиденциальных данных
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
     
-    # Список ID админов (через запятую в .env)
-    ADMIN_IDS: list[int] = [
-        int(admin_id.strip()) 
-        for admin_id in os.getenv("ADMIN_IDS", "").split(",") 
+    # Список ID админов (legacy; по ТЗ предпочтительно ADMIN_USER_ID)
+    _ADMIN_IDS_RAW: list[int] = [
+        int(admin_id.strip())
+        for admin_id in os.getenv("ADMIN_IDS", "").split(",")
         if admin_id.strip()
     ]
+    
+    @property
+    def ADMIN_IDS(self) -> list[int]:
+        """Список админов. Если задан ADMIN_USER_ID — доступ только ему."""
+        if self.ADMIN_USER_ID:
+            return [self.ADMIN_USER_ID]
+        return self._ADMIN_IDS_RAW
     
     # Настройки бота
     BOT_NAME: str = os.getenv("BOT_NAME", "Trading Admin Panel")
@@ -46,8 +58,9 @@ class Settings:
             raise ValueError("TELEGRAM_BOT_TOKEN_ADMIN не установлен")
         if not cls.SUPABASE_URL or not cls.SUPABASE_KEY:
             raise ValueError("SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY не установлены")
-        if not cls.ADMIN_IDS:
-            print("⚠️ ADMIN_IDS не установлен, все пользователи будут иметь доступ!")
+        # Repo 02: доступ строго одному админу
+        if not cls.ADMIN_USER_ID and not cls._ADMIN_IDS_RAW:
+            raise ValueError("ADMIN_USER_ID (или legacy ADMIN_IDS) не установлен — доступ админ-панели не защищён")
         if not cls.ADMIN_CHAT_ID:
             print("⚠️ ADMIN_CHAT_ID не установлен, системные уведомления не будут отправляться!")
         if not cls.ENCRYPTION_KEY:

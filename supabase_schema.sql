@@ -164,6 +164,19 @@ SELECT 'Trading Admin Panel', 'Добро пожаловать в админ-п�
 WHERE NOT EXISTS (SELECT 1 FROM bot_settings);
 
 -- ============================================
+-- Таблица внутренних секретов/настроек Ядра (зашифрованные значения)
+-- ============================================
+CREATE TABLE IF NOT EXISTS core_settings (
+    id BIGSERIAL PRIMARY KEY,
+    key TEXT UNIQUE NOT NULL,
+    value_encrypted TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_core_settings_key ON core_settings(key);
+
+-- ============================================
 -- Функция автоматического обновления updated_at
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -190,6 +203,12 @@ CREATE TRIGGER update_strategies_updated_at
 DROP TRIGGER IF EXISTS update_bot_settings_updated_at ON bot_settings;
 CREATE TRIGGER update_bot_settings_updated_at
     BEFORE UPDATE ON bot_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_core_settings_updated_at ON core_settings;
+CREATE TRIGGER update_core_settings_updated_at
+    BEFORE UPDATE ON core_settings
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 

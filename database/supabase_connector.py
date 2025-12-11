@@ -3,9 +3,11 @@ Supabase Database Connector
 Модуль для работы с базой данных Supabase
 """
 import logging
+import asyncio
 from typing import Optional, Dict, List, Any
 from supabase import create_client, Client
 from config.settings import settings
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -15,23 +17,122 @@ class SupabaseConnector:
     
     def __init__(self):
         self.client: Optional[Client] = None
+        self.max_retries = 3
+        self.retry_delay = 2  # секунды
         self._connect()
     
+    def _validate_credentials(self):
+        """Валидация учетных данных Supabase"""
+        if not settings.SUPABASE_URL:
+            raise ValueError("SUPABASE_URL не установлен")
+        
+        if not settings.SUPABASE_KEY:
+            raise ValueError("SUPABASE_KEY не установлен")
+        
+        # Проверка формата URL
+        if not settings.SUPABASE_URL.startswith("https://"):
+            raise ValueError("SUPABASE_URL должен начинаться с https://")
+        
+        # Проверка длины ключа (Service Role Key обычно длинный)
+        if len(settings.SUPABASE_KEY) < 100:
+            logger.warning(
+                "⚠️ ПРЕДУПРЕЖДЕНИЕ: Ключ Supabase слишком короткий! "
+                "Убедитесь, что вы используете Service Role Key, а не Anon Key. "
+                f"Длина текущего ключа: {len(settings.SUPABASE_KEY)} символов. "
+                "Service Role Key обычно 200+ символов."
+            )
+        
+        logger.info(f"🔑 Длина ключа Supabase: {len(settings.SUPABASE_KEY)} символов")
+        logger.info(f"🌐 Supabase URL: {settings.SUPABASE_URL}")
+    
     def _connect(self):
-        """Подключение к Supabase"""
-        try:
-            self.client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-            logger.info("✅ Успешное подключение к Supabase")
-        except Exception as e:
-            logger.error(f"❌ Ошибка подключения к Supabase: {e}")
-            raise
+        """Подключение к Supabase с повторными попытками"""
+        self._validate_credentials()
+        
+        last_error = None
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                logger.info(f"🔄 Попытка подключения к Supabase ({attempt}/{self.max_retries})...")
+                
+                # Создаем клиент с увеличенным таймаутом
+                self.client = create_client(
+                    settings.SUPABASE_URL,
+                    settings.SUPABASE_KEY,
+                    options={
+                        "timeout": 30,  # 30 секунд таймаут
+                    }
+                )
+                
+                # Проверяем соединение простым запросом
+                try:
+                    # Пробуем получить данные из таблицы users (если пусто, то пусто)
+                    test_response = self.client.table("users").select("telegram_id").limit(1).execute()
+                    logger.info("✅ Успешное подключение к Supabase и проверка доступа к таблице")
+                    return
+                except Exception as test_error:
+                    # Если ошибка связана с API key
+                    if "Invalid API key" in str(test_error) or "JWT" in str(test_error):
+                        raise ValueError(
+                            f"❌ Неверный API ключ! Проверьте SUPABASE_SERVICE_ROLE_KEY в .env файле. "
+                            f"Убедитесь, что используете Service Role Key, а не Anon Key. "
+                            f"Ошибка: {test_error}"
+                        )
+                    raise
+                    
+            except Exception as e:
+                last_error = e
+                logger.error(f"❌ Попытка {attempt} не удалась: {e}")
+                
+                if attempt < self.max_retries:
+                    logger.info(f"⏳ Повторная попытка через {self.retry_delay} секунд...")
+                    import time
+                    time.sleep(self.retry_delay)
+                else:
+                    logger.error("❌ Все попытки подключения исчерпаны")
+        
+        # Если дошли сюда, значит все попытки провалились
+        raise ConnectionError(
+            f"Не удалось подключиться к Supabase после {self.max_retries} попыток. "
+            f"Последняя ошибка: {last_error}"
+        )
+    
+    async def _retry_operation(self, operation, *args, **kwargs):
+        """Универсальный метод для повторения операций при сетевых ошибках"""
+        last_error = None
+        
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                return await operation(*args, **kwargs) if asyncio.iscoroutinefunction(operation) else operation(*args, **kwargs)
+            except Exception as e:
+                last_error = e
+                error_msg = str(e).lower()
+                
+                # Проверяем, является ли это временной сетевой ошибкой
+                is_retryable = any(keyword in error_msg for keyword in [
+                    "timeout", "connection", "network", "http", "temporary"
+                ])
+                
+                if is_retryable and attempt < self.max_retries:
+                    logger.warning(f"⚠️ Временная ошибка при операции (попытка {attempt}/{self.max_retries}): {e}")
+                    await asyncio.sleep(self.retry_delay) if asyncio.iscoroutinefunction(operation) else None
+                else:
+                    raise
+        
+        raise last_error
     
     # ==================== УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ====================
     
-    async def get_all_users(self) -> List[Dict[str, Any]]:
-        """Получить список всех пользователей"""
+    async def get_all_users(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Получить список всех пользователей
+        Args:
+            limit: Ограничение количества записей (None = все)
+        """
         try:
-            response = self.client.table("users").select("*").execute()
+            query = self.client.table("users").select("*").order("created_at", desc=True)
+            if limit:
+                query = query.limit(limit)
+            response = query.execute()
             return response.data if response.data else []
         except Exception as e:
             logger.error(f"Ошибка получения пользователей: {e}")
@@ -205,6 +306,72 @@ class SupabaseConnector:
         except Exception as e:
             logger.error(f"Ошибка получения статистики: {e}")
             return {}
+    
+    # ==================== ФИЛЬТРАЦИЯ ДАННЫХ ПО ДАТАМ ====================
+    
+    async def get_signals_by_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        asset: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Получить сигналы за период времени
+        Args:
+            start_date: Начальная дата (ISO формат)
+            end_date: Конечная дата (ISO формат)
+            asset: Фильтр по активу (опционально)
+        """
+        try:
+            query = (
+                self.client.table("signals")
+                .select("*")
+                .gte("created_at", start_date)
+                .lte("created_at", end_date)
+            )
+            
+            if asset:
+                query = query.eq("asset", asset)
+            
+            response = query.order("created_at", desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            logger.error(f"Ошибка получения сигналов за период: {e}")
+            return []
+    
+    async def get_trades_by_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        asset: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Получить трейды за период времени
+        Args:
+            start_date: Начальная дата (ISO формат)
+            end_date: Конечная дата (ISO формат)
+            asset: Фильтр по активу (опционально)
+            status: Фильтр по статусу (опционально)
+        """
+        try:
+            query = (
+                self.client.table("trades")
+                .select("*")
+                .gte("created_at", start_date)
+                .lte("created_at", end_date)
+            )
+            
+            if asset:
+                query = query.eq("asset", asset)
+            if status:
+                query = query.eq("status", status)
+            
+            response = query.order("created_at", desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            logger.error(f"Ошибка получения трейдов за период: {e}")
+            return []
     
     # ==================== НАСТРОЙКИ БОТА ====================
     

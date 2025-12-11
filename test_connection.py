@@ -141,7 +141,7 @@ async def main():
         print("❌ Подключение к Supabase не удалось")
         print("Проверьте:")
         print("  1. SUPABASE_URL правильный")
-        print("  2. SUPABASE_KEY_FOR_ADMIN правильный (Service Role Key)")
+        print("  2. SUPABASE_SERVICE_ROLE_KEY правильный (Service Role Key)")
         print("  3. Интернет подключение работает")
         sys.exit(1)
     

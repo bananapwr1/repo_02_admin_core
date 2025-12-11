@@ -89,7 +89,9 @@ nano .env  # или любой текстовый редактор
 # Обязательные
 TELEGRAM_BOT_TOKEN_ADMIN=7945037510:AAFdm4vYfd_nvBX_R1SAIoZhbJPwFebrdTQ
 SUPABASE_URL=https://qdilspmiaoxrnotarjnq.supabase.co
-SUPABASE_KEY_FOR_ADMIN=Ne41E2B01nw9eLK4meO8y5sdVW-L4iCV8DMlrK1j0hU
+# ВАЖНО: Используйте Service Role Key (200+ символов), не Anon Key!
+# Найдите его в: Supabase Dashboard -> Settings -> API -> service_role (не anon!)
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...ваш_полный_service_role_key
 
 # Ваш Telegram ID (получите у @userinfobot)
 ADMIN_IDS=123456789
@@ -267,9 +269,10 @@ heroku ps:scale worker=1
 
 ### Ошибка подключения к Supabase
 
-1. Проверьте `SUPABASE_URL` и `SUPABASE_KEY_FOR_ADMIN`
-2. Убедитесь, что таблицы созданы
-3. Проверьте, что используется Service Role Key, а не anon key
+1. Проверьте `SUPABASE_URL` и `SUPABASE_SERVICE_ROLE_KEY`
+2. Убедитесь, что используется Service Role Key (200+ символов), а не Anon Key!
+3. Убедитесь, что таблицы созданы (запустите SQL из supabase_schema.sql)
+4. Запустите диагностику: `python diagnose_connection.py`
 
 ### AI-чат не работает
 

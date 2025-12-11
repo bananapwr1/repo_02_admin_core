@@ -53,8 +53,11 @@ class SupabaseConnector:
         for attempt in range(1, self.max_retries + 1):
             try:
                 logger.info(f"🔄 Попытка подключения к Supabase ({attempt}/{self.max_retries})...")
+                logger.info(f"📍 URL: {settings.SUPABASE_URL}")
+                logger.info(f"🔑 Используется Service Role Key (длина: {len(settings.SUPABASE_KEY)} символов)")
                 
                 # Создаем клиент с увеличенным таймаутом
+                # ВАЖНО: Используем SUPABASE_SERVICE_ROLE_KEY для полного доступа к базе (обход RLS)
                 self.client = create_client(
                     settings.SUPABASE_URL,
                     settings.SUPABASE_KEY,
@@ -67,15 +70,24 @@ class SupabaseConnector:
                 try:
                     # Пробуем получить данные из таблицы users (если пусто, то пусто)
                     test_response = self.client.table("users").select("telegram_id").limit(1).execute()
-                    logger.info("✅ Успешное подключение к Supabase и проверка доступа к таблице")
+                    logger.info("✅ Успешное подключение к Supabase и проверка доступа к таблице 'users'")
+                    logger.info("✅ Service Role Key работает корректно (полный доступ к базе)")
                     return
                 except Exception as test_error:
+                    test_error_str = str(test_error).lower()
                     # Если ошибка связана с API key
-                    if "Invalid API key" in str(test_error) or "JWT" in str(test_error):
+                    if "invalid api key" in test_error_str or "jwt" in test_error_str or "unauthorized" in test_error_str:
                         raise ValueError(
                             f"❌ Неверный API ключ! Проверьте SUPABASE_SERVICE_ROLE_KEY в .env файле. "
-                            f"Убедитесь, что используете Service Role Key, а не Anon Key. "
+                            f"Убедитесь, что используете Service Role Key (не Anon Key). "
+                            f"Service Role Key должен быть длиной 200+ символов и начинаться с 'eyJ'. "
                             f"Ошибка: {test_error}"
+                        )
+                    # Если таблица не существует
+                    elif "relation" in test_error_str and "does not exist" in test_error_str:
+                        logger.error(
+                            f"❌ Таблица 'users' не существует! "
+                            f"Выполните SQL скрипт из файла supabase_schema.sql для создания всех необходимых таблиц."
                         )
                     raise
                     
@@ -135,7 +147,15 @@ class SupabaseConnector:
             response = query.execute()
             return response.data if response.data else []
         except Exception as e:
-            logger.error(f"Ошибка получения пользователей: {e}")
+            error_msg = str(e).lower()
+            if "relation" in error_msg and "does not exist" in error_msg:
+                logger.error(
+                    f"❌ Таблица 'users' не существует в базе данных! "
+                    f"Выполните SQL скрипт из файла supabase_schema.sql для создания таблиц. "
+                    f"Ошибка: {e}"
+                )
+            else:
+                logger.error(f"Ошибка получения пользователей: {e}")
             return []
     
     async def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -195,10 +215,20 @@ class SupabaseConnector:
                 "created_by": created_by,
                 "is_active": True
             }).execute()
-            logger.info(f"Токен {token} создан")
+            logger.info(f"✅ Токен {token} успешно создан")
             return True
         except Exception as e:
-            logger.error(f"Ошибка создания токена: {e}")
+            error_msg = str(e).lower()
+            if "relation" in error_msg and "does not exist" in error_msg:
+                logger.error(
+                    f"❌ Таблица 'invite_tokens' не существует в базе данных! "
+                    f"Выполните SQL скрипт из файла supabase_schema.sql для создания таблиц. "
+                    f"Ошибка: {e}"
+                )
+            elif "duplicate key" in error_msg or "unique constraint" in error_msg:
+                logger.error(f"❌ Токен '{token}' уже существует: {e}")
+            else:
+                logger.error(f"❌ Ошибка создания токена: {e}")
             return False
     
     async def get_all_tokens(self) -> List[Dict[str, Any]]:
@@ -207,7 +237,15 @@ class SupabaseConnector:
             response = self.client.table("invite_tokens").select("*").execute()
             return response.data if response.data else []
         except Exception as e:
-            logger.error(f"Ошибка получения токенов: {e}")
+            error_msg = str(e).lower()
+            if "relation" in error_msg and "does not exist" in error_msg:
+                logger.error(
+                    f"❌ Таблица 'invite_tokens' не существует в базе данных! "
+                    f"Выполните SQL скрипт из файла supabase_schema.sql для создания таблиц. "
+                    f"Ошибка: {e}"
+                )
+            else:
+                logger.error(f"Ошибка получения токенов: {e}")
             return []
     
     async def deactivate_token(self, token: str) -> bool:
@@ -227,7 +265,15 @@ class SupabaseConnector:
             response = self.client.table("strategies").select("*").order("created_at", desc=True).execute()
             return response.data if response.data else []
         except Exception as e:
-            logger.error(f"Ошибка получения стратегий: {e}")
+            error_msg = str(e).lower()
+            if "relation" in error_msg and "does not exist" in error_msg:
+                logger.error(
+                    f"❌ Таблица 'strategies' не существует в базе данных! "
+                    f"Выполните SQL скрипт из файла supabase_schema.sql для создания таблиц. "
+                    f"Ошибка: {e}"
+                )
+            else:
+                logger.error(f"Ошибка получения стратегий: {e}")
             return []
     
     async def get_active_strategy(self) -> Optional[Dict[str, Any]]:
@@ -248,10 +294,20 @@ class SupabaseConnector:
             
             # Создаем новую
             self.client.table("strategies").insert(strategy_data).execute()
-            logger.info(f"Стратегия '{strategy_data.get('name')}' создана")
+            logger.info(f"✅ Стратегия '{strategy_data.get('name')}' успешно создана")
             return True
         except Exception as e:
-            logger.error(f"Ошибка создания стратегии: {e}")
+            error_msg = str(e).lower()
+            if "relation" in error_msg and "does not exist" in error_msg:
+                logger.error(
+                    f"❌ Таблица 'strategies' не существует в базе данных! "
+                    f"Выполните SQL скрипт из файла supabase_schema.sql для создания таблиц. "
+                    f"Ошибка: {e}"
+                )
+            elif "duplicate key" in error_msg or "unique constraint" in error_msg:
+                logger.error(f"❌ Стратегия с таким именем уже существует: {e}")
+            else:
+                logger.error(f"❌ Ошибка создания стратегии: {e}")
             return False
     
     async def update_strategy_status(self, strategy_id: int, is_active: bool) -> bool:

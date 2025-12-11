@@ -82,6 +82,13 @@ def format_decision_log(log: Dict[str, Any]) -> str:
     """Форматирование лога решения AI"""
     signal_type = log.get('signal_type', 'N/A')
     asset = log.get('asset', 'N/A')
+    indicators_data = log.get("indicators_data") or {}
+
+    indicators_lines = ""
+    if isinstance(indicators_data, dict) and indicators_data:
+        # Пытаемся показать "как принималось решение" в человеко-читаемом виде
+        # Например: {"Indicator A": "Buy", "Indicator B": "Sell"}
+        indicators_lines = "\n".join([f"• {k}: {v}" for k, v in indicators_data.items()])
     
     text = f"""
 🧠 <b>Решение AI</b> - {format_datetime(log.get('created_at'))}
@@ -90,6 +97,8 @@ def format_decision_log(log: Dict[str, Any]) -> str:
 🎯 Сигнал: {signal_type}
 📝 Обоснование:
 {log.get('reasoning', 'N/A')}
+
+{f"📌 Детали по индикаторам:\n{indicators_lines}" if indicators_lines else ""}
 
 📈 Уверенность: {log.get('confidence', 0):.2f}%
 """

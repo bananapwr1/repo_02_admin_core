@@ -5,24 +5,17 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 
 
 def get_main_menu_keyboard() -> ReplyKeyboardMarkup:
-    """Главное меню админ-панели"""
+    """Главное меню управления Ядром (Repo 02)"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="👥 Пользователи"),
-                KeyboardButton(text="📊 Статистика")
+                KeyboardButton(text="🎯 Управление Стратегиями"),
             ],
             [
-                KeyboardButton(text="🎯 Стратегии"),
-                KeyboardButton(text="🧠 AI Чат")
+                KeyboardButton(text="🧠 Логика Анализа Ядра"),
             ],
             [
-                KeyboardButton(text="🎫 Токены"),
-                KeyboardButton(text="📝 Логи")
-            ],
-            [
-                KeyboardButton(text="⚙️ Настройки"),
-                KeyboardButton(text="ℹ️ Помощь")
+                KeyboardButton(text="⚙️ Настройки Бота Ядра"),
             ]
         ],
         resize_keyboard=True
@@ -69,9 +62,8 @@ def get_subscription_types_keyboard(user_id: int) -> InlineKeyboardMarkup:
 def get_strategies_menu_keyboard() -> InlineKeyboardMarkup:
     """Меню управления стратегиями"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Список стратегий", callback_data="strategies_list")],
-        [InlineKeyboardButton(text="✅ Активная стратегия", callback_data="strategy_active")],
-        [InlineKeyboardButton(text="➕ Создать новую", callback_data="strategy_create")],
+        [InlineKeyboardButton(text="➕ Создать Новую Стратегию", callback_data="strategy_create_wizard")],
+        [InlineKeyboardButton(text="📋 Список/Редактировать Стратегии", callback_data="strategies_list")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
     return keyboard
@@ -87,64 +79,45 @@ def get_strategy_action_keyboard(strategy_id: int, is_active: bool = False) -> I
         buttons.append([InlineKeyboardButton(text="⏸ Деактивировать", callback_data=f"strategy_deactivate_{strategy_id}")])
     
     buttons.extend([
-        [InlineKeyboardButton(text="📊 Статистика", callback_data=f"strategy_stats_{strategy_id}")],
+        [InlineKeyboardButton(text="✏️ Редактировать", callback_data=f"strategy_edit_{strategy_id}")],
         [InlineKeyboardButton(text="🔙 К списку", callback_data="strategies_list")]
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+def get_strategy_edit_menu_keyboard(strategy_id: int) -> InlineKeyboardMarkup:
+    """Меню выбора поля для редактирования стратегии"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📛 Название", callback_data=f"strategy_edit_field_name_{strategy_id}")],
+        [InlineKeyboardButton(text="📈 Symbol(ы)", callback_data=f"strategy_edit_field_symbols_{strategy_id}")],
+        [InlineKeyboardButton(text="⏰ Timeframe", callback_data=f"strategy_edit_field_timeframe_{strategy_id}")],
+        [InlineKeyboardButton(text="📊 Indicators (JSON)", callback_data=f"strategy_edit_field_indicators_{strategy_id}")],
+        [InlineKeyboardButton(text="🛡 Risk level", callback_data=f"strategy_edit_field_risk_{strategy_id}")],
+        [InlineKeyboardButton(text="🔐 Private params (JSON)", callback_data=f"strategy_edit_field_private_{strategy_id}")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data=f"strategy_{strategy_id}")]
+    ])
 
-def get_tokens_menu_keyboard() -> InlineKeyboardMarkup:
-    """Меню управления токенами"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📋 Список токенов", callback_data="tokens_list")],
-        [InlineKeyboardButton(text="➕ Создать токен", callback_data="token_create")],
+
+def get_core_analysis_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура экрана логики анализа Ядра"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data="core_analysis_refresh")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
-    return keyboard
 
 
-def get_token_type_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура выбора типа токена"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="1️⃣ Одноразовый", callback_data="token_type_single")],
-        [InlineKeyboardButton(text="♾️ Многоразовый (5)", callback_data="token_type_multi_5")],
-        [InlineKeyboardButton(text="♾️ Многоразовый (10)", callback_data="token_type_multi_10")],
-        [InlineKeyboardButton(text="♾️ Неограниченный", callback_data="token_type_unlimited")],
-        [InlineKeyboardButton(text="🔙 Отмена", callback_data="tokens_menu")]
-    ])
-    return keyboard
-
-
-def get_token_subscription_keyboard(max_uses: int) -> InlineKeyboardMarkup:
-    """Клавиатура выбора подписки для токена"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🆓 Trial", callback_data=f"token_sub_trial_{max_uses}")],
-        [InlineKeyboardButton(text="💎 VIP", callback_data=f"token_sub_vip_{max_uses}")],
-        [InlineKeyboardButton(text="📈 Long Only", callback_data=f"token_sub_long_{max_uses}")],
-        [InlineKeyboardButton(text="📉 Short Only", callback_data=f"token_sub_short_{max_uses}")],
-        [InlineKeyboardButton(text="🔙 Отмена", callback_data="tokens_menu")]
-    ])
-    return keyboard
-
-
-def get_logs_menu_keyboard() -> InlineKeyboardMarkup:
-    """Меню просмотра логов"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔧 Системные логи", callback_data="logs_system")],
-        [InlineKeyboardButton(text="🧠 Логи решений AI", callback_data="logs_decisions")],
-        [InlineKeyboardButton(text="🔄 Обновить", callback_data="logs_refresh")],
+def get_core_settings_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура настроек Ядра"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔑 Ключи/Токены (секреты)", callback_data="core_settings_secrets")],
+        [InlineKeyboardButton(text="ℹ️ Системная информация", callback_data="core_settings_info")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
-    return keyboard
 
 
-def get_ai_chat_keyboard() -> InlineKeyboardMarkup:
-    """Клавиатура AI-чата"""
+def get_back_keyboard() -> InlineKeyboardMarkup:
+    """Простая кнопка назад"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💾 Сохранить стратегию", callback_data="ai_save_strategy")],
-        [InlineKeyboardButton(text="📊 Показать статистику", callback_data="ai_show_stats")],
-        [InlineKeyboardButton(text="🔄 Новый диалог", callback_data="ai_new_chat")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
     return keyboard
@@ -157,14 +130,6 @@ def get_confirmation_keyboard(action: str, data: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="✅ Да", callback_data=f"confirm_{action}_{data}"),
             InlineKeyboardButton(text="❌ Нет", callback_data=f"cancel_{action}")
         ]
-    ])
-    return keyboard
-
-
-def get_back_keyboard() -> InlineKeyboardMarkup:
-    """Простая кнопка назад"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
     return keyboard
 

@@ -91,7 +91,7 @@ aiohttp==3.9.3          # HTTP Client
 Содержит:
 - Telegram Bot Token
 - Supabase credentials
-- Список админов
+- ID администратора
 - Настройки бота
 
 ## 📁 Модули
@@ -104,9 +104,10 @@ aiohttp==3.9.3          # HTTP Client
 ```python
 class Settings:
     TELEGRAM_BOT_TOKEN: str
-    SUPABASE_URL: str
-    SUPABASE_KEY: str
-    ADMIN_IDS: list[int]
+    SUPABASE_BASE_URL: str
+    SUPABASE_SERVICE_KEY: str
+    SUPABASE_ENCRYPTION_KEY: str
+    ADMIN_USER_ID: int
     BOT_NAME: str
     WELCOME_MESSAGE: str
 ```
@@ -198,7 +199,7 @@ Inline клавиатуры:
 ```python
 class AdminMiddleware(BaseMiddleware):
     async def __call__(self, handler, event, data):
-        # Проверка ID в ADMIN_IDS
+        # Проверка ID в ADMIN_USER_ID
         # Логирование действий
         # Блокировка неавторизованных
 ```

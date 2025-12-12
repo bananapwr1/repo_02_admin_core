@@ -1,4 +1,4 @@
-# 🔄 Руководство по Миграции: Обновление Переменной Окружения
+# 🔄 Руководство по Миграции: Обновление Переменных Окружения
 
 ## ⚠️ Критическое Изменение
 
@@ -6,14 +6,20 @@
 
 ### Что изменилось?
 
-**СТАРАЯ переменная (УДАЛЕНА):**
+**СТАРАЯ переменная (удалена):**
 ```env
 SUPABASE_KEY_FOR_ADMIN=короткий_ключ
 ```
 
-**НОВАЯ переменная (ОБЯЗАТЕЛЬНА):**
+**НОВЫЕ обязательные переменные (теперь проект требует ровно их):**
 ```env
-SUPABASE_SERVICE_ROLE_KEY=длинный_service_role_ключ_200+_символов
+SUPABASE_BASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=длинный_service_role_ключ_200+_символов
+# (альтернатива имени ключа)
+# SUPABASE_KEY=длинный_service_role_ключ_200+_символов
+SUPABASE_ENCRYPTION_KEY=ваш_fernet_ключ
+TELEGRAM_BOT_TOKEN=ваш_telegram_bot_token
+ADMIN_USER_ID=ваш_telegram_id
 ```
 
 ## 🚨 Почему это важно?
@@ -30,7 +36,7 @@ SUPABASE_SERVICE_ROLE_KEY=длинный_service_role_ключ_200+_символ
 - Отказ в доступе к таблицам
 
 ### Решение
-Теперь код явно требует **Service Role Key** через переменную `SUPABASE_SERVICE_ROLE_KEY`, что гарантирует:
+Теперь код явно требует **Service Role Key** через `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`) и использует `SUPABASE_BASE_URL`, что гарантирует:
 - ✅ Полный доступ к базе данных
 - ✅ Правильная авторизация
 - ✅ Стабильное соединение
@@ -60,22 +66,26 @@ SUPABASE_KEY_FOR_ADMIN=Ne41E2B01nw9eLK4meO8y5sdVW-L4iCV8DMlrK1j0hU
 
 **СТАЛО:**
 ```env
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaWxzcG1pYW94cm5vdGFyam5xIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMzIzODAwMSwiZXhwIjoyMDQ4ODE0MDAxfQ.ваш_полный_ключ_здесь
+SUPABASE_BASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...ваш_полный_ключ_здесь
+SUPABASE_ENCRYPTION_KEY=ваш_fernet_ключ
+TELEGRAM_BOT_TOKEN=ваш_telegram_bot_token
+ADMIN_USER_ID=ваш_telegram_id
 ```
 
-⚠️ **ВАЖНО:** Полностью удалите старую строку `SUPABASE_KEY_FOR_ADMIN`!
+⚠️ **ВАЖНО:** Полностью удалите старую строку `SUPABASE_KEY_FOR_ADMIN` (и любые другие legacy-переменные, если они у вас остались).
 
 ### Шаг 3: Проверьте изменения
 
 Запустите диагностику подключения:
 
 ```bash
-python diagnose_connection.py
+python3 diagnose_connection.py
 ```
 
 Вы должны увидеть:
 ```
-✅ SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIU...
+✅ SUPABASE_SERVICE_KEY: eyJhbGciOiJIU...
    Длина ключа: 200+ символов
    ✅ Длина ключа соответствует Service Role Key
 ```
@@ -85,7 +95,7 @@ python diagnose_connection.py
 ```bash
 # Остановите бота (Ctrl+C)
 # Запустите снова
-python bot.py
+python3 bot.py
 ```
 
 При запуске вы должны увидеть:
@@ -126,13 +136,13 @@ python bot.py
 
 ## ❌ Типичные Ошибки
 
-### Ошибка 1: "SUPABASE_SERVICE_ROLE_KEY не установлен"
+### Ошибка 1: "SUPABASE_SERVICE_KEY не установлен"
 
 **Причина:** Вы не добавили новую переменную в `.env`
 
 **Решение:**
 ```bash
-echo "SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key" >> .env
+echo "SUPABASE_SERVICE_KEY=ваш_service_role_key" >> .env
 ```
 
 ### Ошибка 2: "Ключ слишком короткий"
@@ -169,7 +179,7 @@ echo "SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key" >> .env
 
 1. **Запустите диагностику:**
    ```bash
-   python diagnose_connection.py
+   python3 diagnose_connection.py
    ```
 
 2. **Проверьте логи:**
@@ -185,10 +195,11 @@ echo "SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key" >> .env
 ## ✅ Чек-лист Миграции
 
 - [ ] Получен Service Role Key из Supabase Dashboard
-- [ ] Добавлена переменная `SUPABASE_SERVICE_ROLE_KEY` в `.env`
-- [ ] Удалена старая переменная `SUPABASE_KEY_FOR_ADMIN` из `.env`
+- [ ] Добавлены переменные `SUPABASE_BASE_URL` и `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`) в `.env`
+- [ ] Добавлены `SUPABASE_ENCRYPTION_KEY`, `TELEGRAM_BOT_TOKEN`, `ADMIN_USER_ID`
+- [ ] Удалены старые переменные (`SUPABASE_KEY_FOR_ADMIN`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL`, `ENCRYPTION_KEY`, `ADMIN_CHAT_ID`, `ADMIN_IDS`, `TELEGRAM_BOT_TOKEN_ADMIN`)
 - [ ] Длина ключа проверена (200+ символов)
-- [ ] Запущена диагностика: `python diagnose_connection.py`
+- [ ] Запущена диагностика: `python3 diagnose_connection.py`
 - [ ] Все проверки диагностики пройдены (✅)
 - [ ] Бот успешно запускается без ошибок
 - [ ] Подключение к Supabase работает стабильно

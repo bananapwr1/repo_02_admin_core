@@ -177,7 +177,7 @@ python3 bot.py
 👉 **`QUICK_START_ADMIN_CORE.md`** - Пошаговая инструкция
 
 ### Для Примеров Кода:
-👉 **`EXAMPLES_USAGE.md`** - 50+ примеров использования
+👉 **`EXAMPLES.md`** - примеры использования
 
 ### Для Полного Понимания:
 👉 **`ADMIN_CORE_IMPLEMENTATION.md`** - Вся документация API

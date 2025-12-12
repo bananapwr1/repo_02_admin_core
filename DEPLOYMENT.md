@@ -75,17 +75,17 @@ nano .env  # или любой текстовый редактор
 
 ```env
 # Обязательные
-TELEGRAM_BOT_TOKEN_ADMIN=7945037510:AAFdm4vYfd_nvBX_R1SAIoZhbJPwFebrdTQ
-SUPABASE_URL=https://qdilspmiaoxrnotarjnq.supabase.co
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+SUPABASE_BASE_URL=https://your-project.supabase.co
 # ВАЖНО: Используйте Service Role Key (200+ символов), не Anon Key!
 # Найдите его в: Supabase Dashboard -> Settings -> API -> service_role (не anon!)
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...ваш_полный_service_role_key
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...your_full_service_role_key
 
 # Ваш Telegram ID (получите у @userinfobot)
-ADMIN_IDS=123456789
+ADMIN_USER_ID=123456789
 
-# Опционально: интервал фонового цикла Ядра (секунды)
-CORE_LOOP_INTERVAL_SECONDS=60
+# Ключ шифрования (Fernet)
+SUPABASE_ENCRYPTION_KEY=your_fernet_key_here
 ```
 
 ### 4.5 Получение вашего Telegram ID
@@ -93,12 +93,12 @@ CORE_LOOP_INTERVAL_SECONDS=60
 1. Откройте [@userinfobot](https://t.me/userinfobot) в Telegram
 2. Отправьте любое сообщение
 3. Скопируйте ваш ID
-4. Добавьте его в `ADMIN_IDS` в .env
+4. Добавьте его в `ADMIN_USER_ID` в .env
 
 ### 4.6 Запуск бота
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 Если всё настроено правильно, вы увидите:
@@ -220,8 +220,8 @@ worker: python bot.py
 ```bash
 heroku login
 heroku create your-admin-bot
-heroku config:set TELEGRAM_BOT_TOKEN_ADMIN=your_token
-heroku config:set SUPABASE_URL=your_url
+heroku config:set TELEGRAM_BOT_TOKEN=your_token
+heroku config:set SUPABASE_BASE_URL=your_url
 # ... остальные переменные
 git push heroku main
 heroku ps:scale worker=1
@@ -256,16 +256,16 @@ heroku ps:scale worker=1
 
 ### Ошибка подключения к Supabase
 
-1. Проверьте `SUPABASE_URL` и `SUPABASE_SERVICE_ROLE_KEY`
+1. Проверьте `SUPABASE_BASE_URL` и `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`)
 2. Убедитесь, что используется Service Role Key (200+ символов), а не Anon Key!
 3. Убедитесь, что таблицы созданы (запустите SQL из supabase_schema.sql)
-4. Запустите диагностику: `python diagnose_connection.py`
+4. Запустите диагностику: `python3 diagnose_connection.py`
 
 ### Доступ запрещен
 
-1. Проверьте, что ваш Telegram ID в `ADMIN_IDS`
+1. Проверьте, что ваш Telegram ID в `ADMIN_USER_ID`
 2. ID должен быть числом, без пробелов
-3. Если несколько админов, разделяйте запятой: `123,456,789`
+3. Repo 02 предполагает одного администратора
 
 ## 🔐 Безопасность
 

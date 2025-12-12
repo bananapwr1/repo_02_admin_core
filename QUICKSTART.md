@@ -40,10 +40,11 @@ nano .env
 Минимальная конфигурация:
 
 ```env
-TELEGRAM_BOT_TOKEN_ADMIN=ваш_токен_бота
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key
-ADMIN_IDS=ваш_telegram_id
+TELEGRAM_BOT_TOKEN=ваш_токен_бота
+SUPABASE_BASE_URL=https://xxxxx.supabase.co
+SUPABASE_SERVICE_KEY=ваш_service_role_key
+SUPABASE_ENCRYPTION_KEY=ваш_fernet_key
+ADMIN_USER_ID=ваш_telegram_id
 ```
 
 > **Как получить ваш Telegram ID?**
@@ -52,7 +53,7 @@ ADMIN_IDS=ваш_telegram_id
 ### 5️⃣ Запустите!
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ## ✅ Проверка
@@ -88,7 +89,7 @@ tail -f admin_bot.log
 - Проверьте, что таблицы созданы
 
 ### Доступ запрещен
-- Проверьте ваш ID в ADMIN_IDS
+- Проверьте ваш ID в `ADMIN_USER_ID`
 - ID должен быть числом
 - Перезапустите бота после изменения .env
 
@@ -111,7 +112,7 @@ tail -f admin_bot.log
 tail -f admin_bot.log
 
 # Перезапуск бота (Ctrl+C и снова)
-python bot.py
+python3 bot.py
 
 # Проверка зависимостей
 pip list

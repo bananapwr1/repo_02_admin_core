@@ -202,43 +202,6 @@ status = await dynamic_switcher.get_status_report()
 
 ---
 
-### 4. AI Strategy Configurator
-
-**Файл:** `services/ai_strategy_configurator.py`  
-**Размер:** ~700 строк кода
-
-**НЕ чат-бот! Умный анализатор данных**
-
-**Автоматический анализ:**
-- Оценка производительности (0-100 баллов)
-- Выявление сильных и слабых сторон
-- Генерация конкретных рекомендаций
-- Автоматическая оптимизация параметров
-
-**Рекомендации включают:**
-1. Корректировка Stop Loss при высокой просадке
-2. Изменение Take Profit при низком винрейте
-3. Снижение размера позиции при убытках
-4. Ужесточение фильтров входа
-5. Изменение таймфрейма
-6. Включение trailing stop
-
-**Использование:**
-```python
-from services.ai_strategy_configurator import ai_configurator
-
-# Анализ стратегии
-analysis = await ai_configurator.analyze_and_configure_strategy(strategy)
-
-# Автооптимизация
-analysis, optimized = await ai_configurator.auto_optimize_strategy(
-    strategy_id=1, 
-    apply_changes=True
-)
-```
-
----
-
 ## 📝 Новые Документы
 
 ### 1. MIGRATION_GUIDE.md
@@ -277,7 +240,6 @@ analysis, optimized = await ai_configurator.auto_optimize_strategy(
 | Data Aggregation | ~550 | Сбор и анализ данных |
 | Strategy Templates | ~750 | Шаблоны стратегий |
 | Dynamic Switcher | ~650 | Автопереключение |
-| AI Configurator | ~700 | Умная оптимизация |
 | Database Layer | +150 | Улучшения коннектора |
 | Диагностика | ~300 | Расширенная диагностика |
 | Тесты | ~450 | Комплексное тестирование |
@@ -355,10 +317,9 @@ python bot.py
   ✅ PASS  Data Aggregation Service
   ✅ PASS  Strategy Templates
   ✅ PASS  Dynamic Switcher
-  ✅ PASS  AI Configurator
   ✅ PASS  Database Queries
 
-  Пройдено: 6/6 тестов (100%)
+  Пройдено: 5/5 тестов (100%)
 🎉 Все тесты пройдены успешно!
 ```
 
@@ -394,7 +355,6 @@ python bot.py
 - [x] Data Aggregation Service
 - [x] Strategy Templates Service
 - [x] Dynamic Strategy Switcher
-- [x] AI Strategy Configurator
 - [x] Comprehensive testing suite
 - [x] Extended documentation
 
@@ -455,11 +415,10 @@ python bot.py
 - Подтверждение архитектуры
 - Оптимизация кода
 
-✅ **Добавлено 4 мощных сервиса**
+✅ **Добавлено 3 мощных сервиса**
 - Data Aggregation
 - Strategy Templates
 - Dynamic Switcher
-- AI Configurator
 
 ✅ **Создана полная документация**
 - Migration Guide

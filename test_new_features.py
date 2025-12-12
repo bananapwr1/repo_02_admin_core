@@ -11,7 +11,6 @@ from database import db
 from services.data_aggregation_service import aggregation_service
 from services.strategy_templates_service import strategy_templates_service
 from services.dynamic_strategy_switcher import dynamic_switcher
-from services.ai_strategy_configurator import ai_configurator
 
 
 def print_section(title: str):
@@ -158,56 +157,9 @@ async def test_dynamic_switcher():
         return False
 
 
-async def test_ai_configurator():
-    """Тест 5: AI конфигуратор"""
-    print_section("ТЕСТ 5: AI Strategy Configurator")
-    
-    try:
-        # Получаем активную стратегию
-        strategy = await db.get_active_strategy()
-        
-        if not strategy:
-            print("⚠️ Нет активной стратегии для анализа")
-            print("   Создайте стратегию через шаблоны для полного теста")
-            return True
-        
-        print(f"\n🧠 Анализ стратегии: {strategy['name']}")
-        
-        # Анализируем
-        analysis = await ai_configurator.analyze_and_configure_strategy(strategy, time_period_days=7)
-        
-        print(f"\n✓ Анализ завершен:")
-        print(f"  • Общая оценка: {analysis.overall_score:.1f}/100")
-        print(f"  • Соответствие рынку: {analysis.market_fit}")
-        
-        if analysis.strengths:
-            print(f"\n  ✅ Сильные стороны:")
-            for strength in analysis.strengths[:3]:
-                print(f"     • {strength}")
-        
-        if analysis.weaknesses:
-            print(f"\n  ⚠️ Слабые стороны:")
-            for weakness in analysis.weaknesses[:3]:
-                print(f"     • {weakness}")
-        
-        if analysis.recommendations:
-            print(f"\n  💡 Рекомендации ({len(analysis.recommendations)}):")
-            for i, rec in enumerate(analysis.recommendations[:3], 1):
-                print(f"     {i}. {rec.parameter_path}")
-                print(f"        {rec.current_value} → {rec.recommended_value}")
-                print(f"        Причина: {rec.reason}")
-                print(f"        Уверенность: {rec.confidence:.0%}, Влияние: {rec.impact}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"✗ Ошибка: {e}")
-        return False
-
-
 async def test_database_queries():
-    """Тест 6: Оптимизированные запросы к БД"""
-    print_section("ТЕСТ 6: Database Queries Optimization")
+    """Тест 5: Оптимизированные запросы к БД"""
+    print_section("ТЕСТ 5: Database Queries Optimization")
     
     try:
         # Тест получения данных с фильтрацией
@@ -281,14 +233,10 @@ async def run_all_tests():
     # Тест 4: Динамическое переключение
     test4 = await test_dynamic_switcher()
     results.append(("Dynamic Switcher", test4))
-    
-    # Тест 5: AI Конфигуратор
-    test5 = await test_ai_configurator()
-    results.append(("AI Configurator", test5))
-    
-    # Тест 6: Оптимизированные запросы
-    test6 = await test_database_queries()
-    results.append(("Database Queries", test6))
+
+    # Тест 5: Оптимизированные запросы
+    test5 = await test_database_queries()
+    results.append(("Database Queries", test5))
     
     # Итоговый отчет
     print_section("ИТОГОВЫЙ ОТЧЕТ")

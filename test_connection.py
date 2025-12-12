@@ -31,7 +31,7 @@ async def test_configuration():
         print(f"✅ Администраторы: {len(settings.ADMIN_IDS)}")
         print(f"   IDs: {', '.join(map(str, settings.ADMIN_IDS))}")
     else:
-        print("⚠️  ADMIN_IDS не установлен (доступ будет у всех!)")
+        print("❌ ADMIN_USER_ID не установлен (доступ не защищён!)")
     
     print()
     return True
@@ -134,8 +134,8 @@ async def main():
     if not await test_supabase_connection():
         print("❌ Подключение к Supabase не удалось")
         print("Проверьте:")
-        print("  1. SUPABASE_URL правильный")
-        print("  2. SUPABASE_SERVICE_ROLE_KEY правильный (Service Role Key)")
+        print("  1. SUPABASE_BASE_URL правильный")
+        print("  2. SUPABASE_SERVICE_KEY (или SUPABASE_KEY) правильный (Service Role Key)")
         print("  3. Интернет подключение работает")
         sys.exit(1)
     

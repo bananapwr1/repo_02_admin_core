@@ -4,9 +4,8 @@
 
 Admin Core - это ядро управления торговой системой, которое отвечает за:
 - Управление стратегиями
-- Агрегацию и анализ данных
-- Автоматическую оптимизацию параметров
-- Динамическое переключение стратегий
+- Автономное (pattern-based) принятие решений LONG/SHORT/HOLD по условиям активной стратегии
+- Логику анализа (reasoning logs) для администратора
 
 ## 🎯 Архитектурные Принципы
 
@@ -51,19 +50,15 @@ Admin Core - это ядро управления торговой систем�
 - `trades` - исполнение и трекинг
 - `logs` - централизованное логирование
 
-### 3. Умное Ядро (Smart Core)
+### 3. Автономное Ядро (Pattern-Based Core)
 
-Admin Core не является чат-ботом. Это аналитическое ядро с возможностями:
-- 🧠 **Анализ данных** - сбор статистики за день/неделю/месяц
-- 🎯 **Шаблоны стратегий** - готовые настройки для разных рынков
-- 🔄 **Автопереключение** - смена стратегий по времени и условиям
-- 📊 **Оптимизация** - автоматическая подстройка параметров
+Admin Core не использует внешние AI-модели. Решения принимаются строго по шаблонным условиям индикаторов активной стратегии, а каждый прогон записывает reasoning logs в Supabase (`decision_logs`).
 
 ## 🏛️ Компоненты Системы
 
 ### Core Services (Ядро)
 
-#### 1. Data Aggregation Service
+#### 1. Data Aggregation Service (опционально / не используется в запуске по умолчанию)
 **Файл:** `services/data_aggregation_service.py`
 
 **Функции:**
@@ -78,7 +73,7 @@ await aggregation_service.get_asset_statistics(asset, period='daily')
 await aggregation_service.get_market_conditions()
 ```
 
-#### 2. Strategy Templates Service
+#### 2. Strategy Templates Service (опционально / не используется в запуске по умолчанию)
 **Файл:** `services/strategy_templates_service.py`
 
 **Функции:**
@@ -93,7 +88,7 @@ await aggregation_service.get_market_conditions()
 - **Mean Reversion** - возврат к среднему (4h, низкая волатильность)
 - **Breakout** - пробой уровней (1h, высокая волатильность)
 
-#### 3. Dynamic Strategy Switcher
+#### 3. Dynamic Strategy Switcher (опционально / не используется в запуске по умолчанию)
 **Файл:** `services/dynamic_strategy_switcher.py`
 
 **Функции:**
@@ -143,9 +138,11 @@ await db.get_trades_by_date_range(start, end, asset)
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  1. Загрузка конфигурации (.env)                        │
-│     ✓ SUPABASE_SERVICE_ROLE_KEY (200+ chars)            │
-│     ✓ TELEGRAM_BOT_TOKEN_ADMIN                          │
-│     ✓ ADMIN_IDS                                         │
+│     ✓ SUPABASE_SERVICE_KEY (или SUPABASE_KEY) (200+ chars)│
+│     ✓ SUPABASE_BASE_URL                                  │
+│     ✓ SUPABASE_ENCRYPTION_KEY                            │
+│     ✓ TELEGRAM_BOT_TOKEN                                 │
+│     ✓ ADMIN_USER_ID                                      │
 ├─────────────────────────────────────────────────────────┤
 │  2. Проверка подключения к Supabase                     │
 │     ✓ Валидация ключа                                   │
@@ -153,15 +150,13 @@ await db.get_trades_by_date_range(start, end, asset)
 │     ✓ Проверка доступа                                  │
 ├─────────────────────────────────────────────────────────┤
 │  3. Инициализация сервисов                              │
-│     ✓ Data Aggregation Service                          │
-│     ✓ Strategy Templates Service                        │
-│     ✓ Dynamic Switcher                                  │
+│     ✓ Strategy Manager (CRUD стратегий + шифрование)     │
+│     ✓ Trading Logic Core (pattern-based)                 │
+│     ✓ Reasoning logs (decision_logs)                     │
 ├─────────────────────────────────────────────────────────┤
 │  4. Старт автоматических процессов                      │
-│     ✓ Сбор статистики (каждые 5 мин)                    │
-│     ✓ Анализ рынка (каждые 5 мин)                       │
-│     ✓ Проверка стратегии (каждые 5 мин)                │
-│     ✓ Автопереключение (по необходимости)              │
+│     ✓ Фоновый цикл Ядра (каждые N секунд)               │
+│     ✓ Запись reasoning logs                             │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -221,7 +216,7 @@ await db.get_trades_by_date_range(start, end, asset)
 - ✅ Валидируется при запуске
 
 ### Доступ к API
-- Только администраторы (ADMIN_IDS)
+- Только администратор (ADMIN_USER_ID)
 - Middleware проверка в Telegram Bot
 - Ограничение операций по ролям
 
@@ -309,8 +304,8 @@ await db.get_trades_by_date_range(start, end, asset)
 
 ### Диагностика
 ```bash
-python diagnose_connection.py  # Полная диагностика системы
-python test_connection.py      # Быстрая проверка подключения
+python3 diagnose_connection.py  # Полная диагностика системы
+python3 test_connection.py      # Быстрая проверка подключения
 ```
 
 ### Тестирование
@@ -331,7 +326,7 @@ tail -f admin_bot.log          # Мониторинг логов в реальн
 
 ### 2. Не храните ключи в коде
 ❌ Неправильно: `SUPABASE_KEY = "eyJ..."`
-✅ Правильно: `SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")`
+✅ Правильно: `SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")`
 
 ### 3. Используйте лимиты в запросах
 ❌ Неправильно: `select("*").execute()`

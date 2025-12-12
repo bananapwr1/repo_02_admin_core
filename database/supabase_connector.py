@@ -30,14 +30,14 @@ class SupabaseConnector:
     def _validate_credentials(self):
         """Валидация учетных данных Supabase"""
         if not settings.SUPABASE_URL:
-            raise ValueError("SUPABASE_URL не установлен")
+            raise ValueError("SUPABASE_BASE_URL не установлен")
         
         if not settings.SUPABASE_KEY:
-            raise ValueError("SUPABASE_KEY не установлен")
+            raise ValueError("SUPABASE_SERVICE_KEY (или SUPABASE_KEY) не установлен")
         
         # Проверка формата URL
         if not settings.SUPABASE_URL.startswith("https://"):
-            raise ValueError("SUPABASE_URL должен начинаться с https://")
+            raise ValueError("SUPABASE_BASE_URL должен начинаться с https://")
         
         # Проверка длины ключа (Service Role Key обычно длинный)
         if len(settings.SUPABASE_KEY) < 100:
@@ -63,7 +63,7 @@ class SupabaseConnector:
                 logger.info(f"🔑 Используется Service Role Key (длина: {len(settings.SUPABASE_KEY)} символов)")
                 
                 # Создаем клиент с увеличенным таймаутом
-                # ВАЖНО: Используем SUPABASE_SERVICE_ROLE_KEY для полного доступа к базе (обход RLS)
+                # ВАЖНО: Используем SUPABASE_SERVICE_KEY для полного доступа к базе (обход RLS)
                 self.client = create_client(
                     settings.SUPABASE_URL,
                     settings.SUPABASE_KEY,
@@ -84,7 +84,7 @@ class SupabaseConnector:
                     # Если ошибка связана с API key
                     if "invalid api key" in test_error_str or "jwt" in test_error_str or "unauthorized" in test_error_str:
                         raise ValueError(
-                            f"❌ Неверный API ключ! Проверьте SUPABASE_SERVICE_ROLE_KEY в .env файле. "
+                            f"❌ Неверный API ключ! Проверьте SUPABASE_SERVICE_KEY (или SUPABASE_KEY) в .env файле. "
                             f"Убедитесь, что используете Service Role Key (не Anon Key). "
                             f"Service Role Key должен быть длиной 200+ символов и начинаться с 'eyJ'. "
                             f"Ошибка: {test_error}"

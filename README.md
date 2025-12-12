@@ -98,18 +98,16 @@ nano .env
 ```
 
 Обязательные переменные:
-- `TELEGRAM_BOT_TOKEN_ADMIN` - токен бота от @BotFather
-- `SUPABASE_URL` - URL вашего Supabase проекта
-- `SUPABASE_SERVICE_ROLE_KEY` - Service Role Key из Supabase (200+ символов)
-- `ADMIN_IDS` - список Telegram ID администраторов через запятую
-
-Опциональные переменные:
-- `CORE_LOOP_INTERVAL_SECONDS` - интервал фонового цикла Ядра (по умолчанию 60)
+- `TELEGRAM_BOT_TOKEN` - токен бота от @BotFather
+- `SUPABASE_BASE_URL` - URL вашего Supabase проекта
+- `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`) - Service Role Key из Supabase (200+ символов)
+- `SUPABASE_ENCRYPTION_KEY` - ключ Fernet для шифрования приватных полей
+- `ADMIN_USER_ID` - Telegram ID единственного администратора
 
 ### 3. Запуск бота
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ## 📊 Структура базы данных Supabase
@@ -137,7 +135,7 @@ python bot.py
 - `exit_rules` (jsonb)
 - `risk_management` (jsonb)
 - `created_at` (timestamp)
-- `created_by_ai` (bool)
+- `created_by_ai` (bool, legacy; не используется)
 
 ### `invite_tokens`
 - `token` (text, primary key)
@@ -239,7 +237,7 @@ python bot.py
 1. Правильность токенов в `.env`
 2. Подключение к Supabase
 3. Наличие всех необходимых таблиц в БД
-4. ID админов в `ADMIN_IDS`
+4. `ADMIN_USER_ID` в `.env`
 5. Логи в файле `admin_bot.log`
 
 ---

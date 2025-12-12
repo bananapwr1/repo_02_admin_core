@@ -57,7 +57,7 @@ async def on_startup(bot: Bot):
     
     # Проверяем доступность шифрования
     if not settings.ENCRYPTION_KEY:
-        logger.warning("⚠️ ENCRYPTION_KEY не установлен, шифрование конфиденциальных данных недоступно")
+        logger.warning("⚠️ SUPABASE_ENCRYPTION_KEY не установлен, шифрование конфиденциальных данных недоступно")
     
     # Отправляем уведомление о запуске через сервис уведомлений
     await notification_service.notify_startup()

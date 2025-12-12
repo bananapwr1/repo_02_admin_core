@@ -28,7 +28,7 @@ async def cmd_start(message: Message):
 Это <b>админский интерфейс Admin Core</b> для управления Ядром.
 
 🔐 <b>Доступ:</b> только для ADMIN_USER_ID
-🗄 <b>База:</b> Supabase через <b>SUPABASE_SERVICE_ROLE_KEY</b>
+🗄 <b>База:</b> Supabase через <b>SUPABASE_SERVICE_KEY</b> (или <b>SUPABASE_KEY</b>)
 
 Выберите раздел:
 """

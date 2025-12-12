@@ -12,8 +12,9 @@ class Settings:
     """Настройки приложения"""
     
     # Telegram Bot
-    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN_ADMIN", "")
-    ADMIN_CHAT_ID: Optional[int] = int(os.getenv("ADMIN_CHAT_ID", "0")) if os.getenv("ADMIN_CHAT_ID") else None
+    # Требуется ровно одна переменная:
+    #   TELEGRAM_BOT_TOKEN
+    TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     
     # Единственный администратор (Repo 02 должен быть доступен только ему)
     ADMIN_USER_ID: Optional[int] = (
@@ -21,49 +22,45 @@ class Settings:
     )
     
     # Supabase - ВАЖНО: используется Service Role Key для полного доступа
-    # Admin Core (Repo 02) требует Service Role Key для управления всеми данными
-    # UI/Trading Bot (Repo 01) использует NEXT_PUBLIC_SUPABASE_KEY (ограниченный доступ)
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    # Требуются ровно две переменные:
+    #   SUPABASE_BASE_URL
+    #   SUPABASE_SERVICE_KEY (или SUPABASE_KEY)
+    SUPABASE_URL: str = os.getenv("SUPABASE_BASE_URL", "")
+    SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "") or os.getenv("SUPABASE_KEY", "")
+    # Внутренний алиас для существующего кода (НЕ отдельная env-переменная)
+    SUPABASE_KEY: str = SUPABASE_SERVICE_KEY
     
     # Ключ шифрования для конфиденциальных данных
-    ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
-    
-    # Список ID админов (legacy; по ТЗ предпочтительно ADMIN_USER_ID)
-    _ADMIN_IDS_RAW: list[int] = [
-        int(admin_id.strip())
-        for admin_id in os.getenv("ADMIN_IDS", "").split(",")
-        if admin_id.strip()
-    ]
+    # Требуется ровно одна переменная:
+    #   SUPABASE_ENCRYPTION_KEY
+    ENCRYPTION_KEY: str = os.getenv("SUPABASE_ENCRYPTION_KEY", "")
     
     @property
     def ADMIN_IDS(self) -> list[int]:
-        """Список админов. Если задан ADMIN_USER_ID — доступ только ему."""
-        if self.ADMIN_USER_ID:
-            return [self.ADMIN_USER_ID]
-        return self._ADMIN_IDS_RAW
+        """Список админов. Repo 02: доступ строго ADMIN_USER_ID."""
+        return [self.ADMIN_USER_ID] if self.ADMIN_USER_ID else []
     
     # Настройки бота
-    BOT_NAME: str = os.getenv("BOT_NAME", "Trading Admin Panel")
-    WELCOME_MESSAGE: str = os.getenv("WELCOME_MESSAGE", "Добро пожаловать в админ-панель!")
+    # (НЕ читаются из env — чтобы не раздувать конфигурацию)
+    BOT_NAME: str = "Trading Admin Panel"
+    WELCOME_MESSAGE: str = "Добро пожаловать в админ-панель!"
 
     # Интервал фонового цикла Ядра (секунды)
-    CORE_LOOP_INTERVAL_SECONDS: int = int(os.getenv("CORE_LOOP_INTERVAL_SECONDS", "60"))
+    # (НЕ читается из env — чтобы не раздувать конфигурацию)
+    CORE_LOOP_INTERVAL_SECONDS: int = 60
     
     @classmethod
     def validate(cls) -> bool:
         """Проверка наличия обязательных переменных"""
         if not cls.TELEGRAM_BOT_TOKEN:
-            raise ValueError("TELEGRAM_BOT_TOKEN_ADMIN не установлен")
+            raise ValueError("TELEGRAM_BOT_TOKEN не установлен")
         if not cls.SUPABASE_URL or not cls.SUPABASE_KEY:
-            raise ValueError("SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY не установлены")
+            raise ValueError("SUPABASE_BASE_URL или SUPABASE_SERVICE_KEY (или SUPABASE_KEY) не установлены")
         # Repo 02: доступ строго одному админу
-        if not cls.ADMIN_USER_ID and not cls._ADMIN_IDS_RAW:
-            raise ValueError("ADMIN_USER_ID (или legacy ADMIN_IDS) не установлен — доступ админ-панели не защищён")
-        if not cls.ADMIN_CHAT_ID:
-            print("⚠️ ADMIN_CHAT_ID не установлен, системные уведомления не будут отправляться!")
+        if not cls.ADMIN_USER_ID:
+            raise ValueError("ADMIN_USER_ID не установлен — доступ админ-панели не защищён")
         if not cls.ENCRYPTION_KEY:
-            print("⚠️ ENCRYPTION_KEY не установлен, шифрование конфиденциальных данных будет недоступно!")
+            print("⚠️ SUPABASE_ENCRYPTION_KEY не установлен, шифрование конфиденциальных данных будет недоступно!")
         return True
 
 

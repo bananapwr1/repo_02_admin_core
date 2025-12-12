@@ -61,10 +61,10 @@ async def show_system_info(callback: CallbackQuery):
 
 <b>База данных:</b>
 ├ Supabase: ✅ Подключено
-└ URL: {settings.SUPABASE_URL}
+└ BASE_URL: {settings.SUPABASE_URL}
 
 <b>Шифрование:</b>
-└ ENCRYPTION_KEY: {"✅ Настроен" if settings.ENCRYPTION_KEY else "❌ Не настроен"}
+└ SUPABASE_ENCRYPTION_KEY: {"✅ Настроен" if settings.ENCRYPTION_KEY else "❌ Не настроен"}
 
 <b>Администратор:</b>
 └ ADMIN_USER_ID: {settings.ADMIN_USER_ID or "N/A"}
@@ -82,10 +82,10 @@ async def core_secrets_menu(callback: CallbackQuery):
     lines: list[str] = [
         "🔑 <b>Ключи/Токены (секреты)</b>",
         "",
-        f"🔐 Шифрование: {'✅ доступно' if enc_ok else '❌ недоступно (нужен ENCRYPTION_KEY)'}",
+        f"🔐 Шифрование: {'✅ доступно' if enc_ok else '❌ недоступно (нужен SUPABASE_ENCRYPTION_KEY)'}",
         "",
         "<b>Env (только просмотр):</b>",
-        f"• SUPABASE_SERVICE_ROLE_KEY: {_mask(settings.SUPABASE_KEY)}",
+        f"• SUPABASE_SERVICE_KEY (или SUPABASE_KEY): {_mask(settings.SUPABASE_KEY)}",
         "",
         "<b>Supabase (core_settings):</b>",
     ]
@@ -119,7 +119,7 @@ async def core_secret_set_prompt(callback: CallbackQuery, state: FSMContext):
 
     service = get_core_settings_service()
     if not service.is_encryption_available():
-        await callback.answer("❌ ENCRYPTION_KEY не настроен", show_alert=True)
+        await callback.answer("❌ SUPABASE_ENCRYPTION_KEY не настроен", show_alert=True)
         return
 
     await state.set_state(SettingsStates.editing_secret_value)
@@ -168,7 +168,7 @@ async def core_secret_set_apply(message: Message, state: FSMContext):
         )
     else:
         await message.answer(
-            "❌ Не удалось сохранить секрет. Проверьте ENCRYPTION_KEY и таблицу core_settings в Supabase.",
+            "❌ Не удалось сохранить секрет. Проверьте SUPABASE_ENCRYPTION_KEY и таблицу core_settings в Supabase.",
             reply_markup=get_core_settings_keyboard(),
             parse_mode="HTML",
         )

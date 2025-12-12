@@ -36,7 +36,7 @@ class EncryptionService:
                 logger.error(f"❌ Ошибка инициализации шифрования: {e}")
                 self.cipher_suite = None
         else:
-            logger.warning("⚠️ ENCRYPTION_KEY не установлен, шифрование недоступно")
+            logger.warning("⚠️ SUPABASE_ENCRYPTION_KEY не установлен, шифрование недоступно")
     
     def is_available(self) -> bool:
         """Проверка доступности шифрования"""
@@ -213,7 +213,6 @@ class StrategyManagerService:
         api_keys: Optional[Dict[str, str]] = None,
         secret_keys: Optional[Dict[str, str]] = None,
         private_params: Optional[Dict[str, Any]] = None,
-        created_by_ai: bool = False
     ) -> Optional[int]:
         """
         Создать новую торговую стратегию
@@ -231,8 +230,6 @@ class StrategyManagerService:
             api_keys: API ключи (будут зашифрованы)
             secret_keys: Секретные ключи (будут зашифрованы)
             private_params: Приватные параметры (будут зашифрованы)
-            created_by_ai: Создана ли AI
-        
         Returns:
             ID созданной стратегии или None при ошибке
         """
@@ -249,8 +246,7 @@ class StrategyManagerService:
                 "indicators": indicators or {},
                 "entry_rules": entry_rules or {},
                 "exit_rules": exit_rules or {},
-                "risk_management": risk_management or {},
-                "created_by_ai": created_by_ai
+                "risk_management": risk_management or {}
             }
             
             # Добавляем конфиденциальные данные (если есть)
@@ -264,7 +260,7 @@ class StrategyManagerService:
             # Шифруем конфиденциальные поля
             encrypted_strategy_data = self._encrypt_sensitive_data(strategy_data)
             
-            # Сохраняем в базу данных (используется SUPABASE_SERVICE_ROLE_KEY)
+            # Сохраняем в базу данных (используется Service Role Key через SUPABASE_SERVICE_KEY)
             success = await db.create_strategy(encrypted_strategy_data)
             
             if success:

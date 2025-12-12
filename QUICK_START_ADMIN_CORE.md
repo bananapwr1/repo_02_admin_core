@@ -16,12 +16,12 @@ pip install -r requirements.txt
 
 **Вариант А: Используйте скрипт**
 ```bash
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 ```
 
 **Вариант Б: Через командную строку**
 ```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 Скопируйте полученный ключ.
@@ -34,30 +34,29 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 ```env
 # ============= ОСНОВНЫЕ НАСТРОЙКИ =============
-TELEGRAM_BOT_TOKEN_ADMIN=your_telegram_bot_token_here
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 
 # ============= SUPABASE (ОБЯЗАТЕЛЬНО!) =============
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_200plus_chars
+SUPABASE_BASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your_service_role_key_200plus_chars
 
 # ============= НОВЫЕ ПЕРЕМЕННЫЕ =============
 # Chat ID администратора для системных уведомлений
 # Узнать можно через @userinfobot или @getmyid_bot
-ADMIN_CHAT_ID=123456789
+ADMIN_USER_ID=123456789
 
 # Ключ шифрования (сгенерированный на шаге 2)
-ENCRYPTION_KEY=полученный_ключ_шифрования
+SUPABASE_ENCRYPTION_KEY=полученный_ключ_шифрования
 
-# ============= ОПЦИОНАЛЬНЫЕ =============
-ADMIN_IDS=123456789,987654321
+# (опциональные переменные окружения — не используются)
 ```
 
 **Проверьте:**
-- ✅ `TELEGRAM_BOT_TOKEN_ADMIN` - токен вашего админ-бота
-- ✅ `SUPABASE_URL` - URL вашего Supabase проекта
-- ✅ `SUPABASE_SERVICE_ROLE_KEY` - Service Role Key (200+ символов!)
-- ✅ `ADMIN_CHAT_ID` - ваш Telegram ID
-- ✅ `ENCRYPTION_KEY` - сгенерированный ключ
+- ✅ `TELEGRAM_BOT_TOKEN` - токен вашего админ-бота
+- ✅ `SUPABASE_BASE_URL` - URL вашего Supabase проекта
+- ✅ `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`) - Service Role Key (200+ символов!)
+- ✅ `ADMIN_USER_ID` - ваш Telegram ID
+- ✅ `SUPABASE_ENCRYPTION_KEY` - сгенерированный ключ
 
 ---
 
@@ -66,11 +65,8 @@ ADMIN_IDS=123456789,987654321
 Выполните миграцию в Supabase SQL Editor:
 
 ```bash
-# Откройте файл
-cat supabase_migration_encrypted_fields.sql
-
-# Скопируйте содержимое и выполните в Supabase Dashboard
-# https://supabase.com/dashboard -> SQL Editor
+# Откройте файл и выполните содержимое в Supabase Dashboard -> SQL Editor
+# (в терминале можно просто посмотреть файл любым редактором)
 ```
 
 Или выполните SQL напрямую:
@@ -90,7 +86,7 @@ ADD COLUMN IF NOT EXISTS credentials_encrypted TEXT;
 Запустите тестовый скрипт:
 
 ```bash
-python test_admin_core_features.py
+python3 test_admin_core_features.py
 ```
 
 **Ожидаемый результат:**
@@ -110,7 +106,7 @@ python test_admin_core_features.py
 ### ✅ Шаг 6: Запуск Бота
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 **Ожидаемый вывод:**
@@ -180,18 +176,18 @@ print(f"Расшифровано: {decrypted}")
 
 ## 🔍 Устранение Проблем
 
-### Проблема 1: "ENCRYPTION_KEY не установлен"
+### Проблема 1: "SUPABASE_ENCRYPTION_KEY не установлен"
 
 **Решение:**
 ```bash
 # Генерируйте ключ
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 
 # Добавьте в .env
-ENCRYPTION_KEY=полученный_ключ
+SUPABASE_ENCRYPTION_KEY=полученный_ключ
 ```
 
-### Проблема 2: "ADMIN_CHAT_ID не установлен"
+### Проблема 2: "ADMIN_USER_ID не установлен"
 
 **Решение:**
 ```bash
@@ -199,7 +195,7 @@ ENCRYPTION_KEY=полученный_ключ
 # 2. Отправьте любое сообщение
 # 3. Скопируйте ваш ID
 # 4. Добавьте в .env
-ADMIN_CHAT_ID=ваш_id
+ADMIN_USER_ID=ваш_id
 ```
 
 ### Проблема 3: "Таблица strategies не существует"
@@ -225,17 +221,17 @@ cat supabase_schema.sql
 ### Проблема 5: Уведомления не приходят
 
 **Проверьте:**
-1. ✅ `ADMIN_CHAT_ID` установлен правильно
+1. ✅ `ADMIN_USER_ID` установлен правильно
 2. ✅ Бот добавлен в чат/разговор
 3. ✅ Бот не заблокирован пользователем
-4. ✅ `TELEGRAM_BOT_TOKEN_ADMIN` корректный
+4. ✅ `TELEGRAM_BOT_TOKEN` корректный
 
 ---
 
 ## 📚 Дополнительные Ресурсы
 
 - **Полная документация:** `ADMIN_CORE_IMPLEMENTATION.md`
-- **Примеры использования:** `EXAMPLES_USAGE.md`
+- **Примеры использования:** `EXAMPLES.md`
 - **Исходный код:**
   - `services/notification_service.py`
   - `services/strategy_manager_service.py`
@@ -246,10 +242,10 @@ cat supabase_schema.sql
 
 Перед запуском в продакшн проверьте:
 
-- [ ] ✅ Все тесты пройдены (`python test_admin_core_features.py`)
-- [ ] ✅ `ENCRYPTION_KEY` сгенерирован и установлен
-- [ ] ✅ `ADMIN_CHAT_ID` настроен
-- [ ] ✅ `SUPABASE_SERVICE_ROLE_KEY` проверен (200+ символов)
+- [ ] ✅ Все тесты пройдены (`python3 test_admin_core_features.py`)
+- [ ] ✅ `SUPABASE_ENCRYPTION_KEY` сгенерирован и установлен
+- [ ] ✅ `ADMIN_USER_ID` настроен
+- [ ] ✅ `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`) проверен (200+ символов)
 - [ ] ✅ Миграция БД выполнена
 - [ ] ✅ Получено уведомление о запуске бота
 - [ ] ✅ Создана и активирована тестовая стратегия

@@ -446,7 +446,6 @@ async def strategy_wizard_save(callback: CallbackQuery, state: FSMContext):
         indicators=data.get("indicators") or {},
         risk_management={"risk_level": data.get("risk_level")},
         private_params=data.get("private_params"),
-        created_by_ai=False,
     )
 
     await state.clear()

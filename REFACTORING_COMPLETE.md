@@ -237,10 +237,6 @@ TELEGRAM_BOT_TOKEN_ADMIN=your_telegram_bot_token_here
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here_200plus_characters
 
-# OpenAI API для AI-чата стратегий
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4-turbo-preview
-
 # Список ID администраторов (через запятую)
 ADMIN_IDS=123456789,987654321
 

@@ -365,7 +365,7 @@ class SupabaseConnector:
             return []
     
     async def get_decision_logs(self, limit: int = 20) -> List[Dict[str, Any]]:
-        """Получить логи принятия решений AI"""
+        """Получить логи принятия решений Ядра (reasoning logs)"""
         try:
             self._ensure_connected()
             response = self.client.table("decision_logs").select("*").order("created_at", desc=True).limit(limit).execute()
@@ -373,6 +373,43 @@ class SupabaseConnector:
         except Exception as e:
             logger.error(f"Ошибка получения логов решений: {e}")
             return []
+
+    async def create_decision_log(self, log_data: Dict[str, Any]) -> bool:
+        """
+        Создать запись логики принятия решения (decision_logs).
+        Ожидаемые поля (минимум):
+          - asset: str
+          - signal_type: str | None  (LONG/SHORT/HOLD/None)
+          - reasoning: str
+          - confidence: float | None (0..100)
+          - indicators_data: dict (структурированные проверки/контекст)
+        """
+        try:
+            self._ensure_connected()
+            self.client.table("decision_logs").insert(log_data).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка создания decision_log: {e}")
+            return False
+
+    async def create_signal(self, signal_data: Dict[str, Any]) -> bool:
+        """
+        Создать торговый сигнал (signals).
+        Ожидаемые поля (минимум):
+          - asset: str
+          - signal_type: str (LONG/SHORT)
+          - price: float | None
+          - amount: float | None
+          - timeframe: int | None (минуты)
+          - strategy_id: int | None
+        """
+        try:
+            self._ensure_connected()
+            self.client.table("signals").insert(signal_data).execute()
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка создания сигнала: {e}")
+            return False
     
     async def get_trading_statistics(self) -> Dict[str, Any]:
         """Получить общую статистику трейдинга"""

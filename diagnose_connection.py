@@ -115,13 +115,6 @@ def check_environment_variables():
     else:
         print(f"✅ ADMIN_IDS: {', '.join(map(str, settings.ADMIN_IDS))} ({len(settings.ADMIN_IDS)} админов)")
     
-    # Проверка OpenAI
-    if not settings.OPENAI_API_KEY:
-        print("⚠️ OPENAI_API_KEY не установлен (AI-функции будут недоступны)")
-    else:
-        key_preview = settings.OPENAI_API_KEY[:10] + "..."
-        print(f"✅ OPENAI_API_KEY: {key_preview}")
-    
     print()
     
     if issues:

@@ -21,7 +21,6 @@ class SettingsStates(StatesGroup):
 
 
 SUPPORTED_SECRETS: dict[str, dict[str, str]] = {
-    "openai_api_key": {"title": "OpenAI API Key", "hint": "Вставьте ключ (строка)."},
     "exchange_credentials": {"title": "Exchange credentials", "hint": "Вставьте JSON или строку (например api_key/secret)."},
 }
 
@@ -87,7 +86,6 @@ async def core_secrets_menu(callback: CallbackQuery):
         "",
         "<b>Env (только просмотр):</b>",
         f"• SUPABASE_SERVICE_ROLE_KEY: {_mask(settings.SUPABASE_KEY)}",
-        f"• OPENAI_API_KEY: {_mask(settings.OPENAI_API_KEY)}",
         "",
         "<b>Supabase (core_settings):</b>",
     ]

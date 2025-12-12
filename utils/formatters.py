@@ -79,19 +79,32 @@ def format_log_entry(log: Dict[str, Any]) -> str:
 
 
 def format_decision_log(log: Dict[str, Any]) -> str:
-    """Форматирование лога решения AI"""
+    """Форматирование лога решения Ядра (reasoning log)"""
     signal_type = log.get('signal_type', 'N/A')
     asset = log.get('asset', 'N/A')
     indicators_data = log.get("indicators_data") or {}
 
     indicators_lines = ""
     if isinstance(indicators_data, dict) and indicators_data:
-        # Пытаемся показать "как принималось решение" в человеко-читаемом виде
-        # Например: {"Indicator A": "Buy", "Indicator B": "Sell"}
-        indicators_lines = "\n".join([f"• {k}: {v}" for k, v in indicators_data.items()])
+        checks = indicators_data.get("checks")
+        if isinstance(checks, list) and checks:
+            lines = []
+            for c in checks[:20]:
+                if not isinstance(c, dict):
+                    continue
+                ind = c.get("indicator", "N/A")
+                val = c.get("current_value", "N/A")
+                cond = c.get("condition", "N/A")
+                res = "TRUE" if c.get("result") else "FALSE"
+                bias = c.get("decision_bias", "NEUTRAL")
+                lines.append(f"• {ind}: {val} -> {cond} => {res} (в пользу: {bias})")
+            indicators_lines = "\n".join(lines)
+        else:
+            # Fallback: плоский словарь
+            indicators_lines = "\n".join([f"• {k}: {v}" for k, v in indicators_data.items()])
     
     text = f"""
-🧠 <b>Решение AI</b> - {format_datetime(log.get('created_at'))}
+🧠 <b>Логика Анализа Ядра</b> - {format_datetime(log.get('created_at'))}
 
 📊 Актив: {asset}
 🎯 Сигнал: {signal_type}

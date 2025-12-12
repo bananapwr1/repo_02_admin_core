@@ -49,7 +49,8 @@
 │
 ├── 📁 services/                  # Бизнес-логика
 │   ├── __init__.py
-│   └── ai_strategy_service.py    # Работа с OpenAI API
+│   ├── strategy_manager_service.py # Управление стратегиями + шифрование
+│   └── trading_core_service.py     # Автономное ядро генерации сигналов
 │
 └── 📁 utils/                     # Утилиты
     ├── __init__.py
@@ -80,7 +81,6 @@ if __name__ == "__main__":
 ```
 aiogram==3.4.1          # Telegram Bot Framework
 supabase==2.3.4         # Database Client
-openai==1.12.0          # AI Integration
 python-dotenv==1.0.0    # Environment Variables
 pydantic==2.6.1         # Data Validation
 aiohttp==3.9.3          # HTTP Client
@@ -92,7 +92,6 @@ aiohttp==3.9.3          # HTTP Client
 Содержит:
 - Telegram Bot Token
 - Supabase credentials
-- OpenAI API Key
 - Список админов
 - Настройки бота
 
@@ -108,7 +107,6 @@ class Settings:
     TELEGRAM_BOT_TOKEN: str
     SUPABASE_URL: str
     SUPABASE_KEY: str
-    OPENAI_API_KEY: str
     ADMIN_IDS: list[int]
     BOT_NAME: str
     WELCOME_MESSAGE: str
@@ -131,6 +129,7 @@ class Settings:
 - `create_strategy()` - Создание стратегии
 - `get_system_logs()` - Системные логи
 - `get_decision_logs()` - Логи решений AI
+- `get_decision_logs()` - Логи решений Ядра (reasoning logs)
 - и многое другое...
 
 Singleton паттерн:
@@ -217,29 +216,14 @@ class AdminMiddleware(BaseMiddleware):
 
 ### 🤖 services/
 
-#### ai_strategy_service.py
-**Класс AIStrategyService** - Работа с OpenAI
+#### trading_core_service.py
+**TradingLogicCore** - автономное ядро генерации сигналов и reasoning logs
 
-```python
-class AIStrategyService:
-    def __init__(self):
-        self.client = AsyncOpenAI()
-        self.conversations = {}
-    
-    async def send_message(user_id, message):
-        # Отправка в OpenAI
-        
-    async def process_message_with_context(user_id, message):
-        # Обработка с контекстом торговли
-        
-    async def save_strategy(strategy_data):
-        # Сохранение в Supabase
-```
-
-Singleton паттерн:
-```python
-ai_service = AIStrategyService()
-```
+Что делает:
+- Читает активные стратегии из Supabase
+- Проверяет условия индикаторов по шаблонам (TRUE/FALSE)
+- Пишет reasoning logs в `decision_logs`
+- При LONG/SHORT создаёт запись в `signals`
 
 ### 🔧 utils/
 
@@ -250,7 +234,7 @@ ai_service = AIStrategyService()
 - `format_strategy_info()` - Информация о стратегии
 - `format_token_info()` - Информация о токене
 - `format_log_entry()` - Запись лога
-- `format_decision_log()` - Лог решения AI
+- `format_decision_log()` - Лог решения Ядра (reasoning log)
 - `format_statistics()` - Общая статистика
 - `format_datetime()` - Дата и время
 - `format_json()` - JSON для отображения
@@ -277,7 +261,7 @@ Telegram → bot.py → Dispatcher → AdminMiddleware → Handler
 
 ### 2. Handler обрабатывает запрос
 ```
-Handler → Database/Service → Supabase/OpenAI → Handler
+Handler → Database/Service → Supabase → Handler
 ```
 
 ### 3. Ответ пользователю
@@ -293,7 +277,7 @@ Handler → Keyboard → Telegram
 2. **strategies** - Торговые стратегии
 3. **invite_tokens** - Токены приглашения
 4. **system_logs** - Системные логи
-5. **decision_logs** - Логи решений AI
+5. **decision_logs** - Логи решений Ядра (reasoning logs)
 6. **signals** - Торговые сигналы
 7. **trades** - Выполненные трейды
 8. **bot_settings** - Настройки бота

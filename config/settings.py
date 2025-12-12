@@ -26,10 +26,6 @@ class Settings:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     
-    # OpenAI для AI-чата стратегий
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
-    
     # Ключ шифрования для конфиденциальных данных
     ENCRYPTION_KEY: str = os.getenv("ENCRYPTION_KEY", "")
     
@@ -50,6 +46,9 @@ class Settings:
     # Настройки бота
     BOT_NAME: str = os.getenv("BOT_NAME", "Trading Admin Panel")
     WELCOME_MESSAGE: str = os.getenv("WELCOME_MESSAGE", "Добро пожаловать в админ-панель!")
+
+    # Интервал фонового цикла Ядра (секунды)
+    CORE_LOOP_INTERVAL_SECONDS: int = int(os.getenv("CORE_LOOP_INTERVAL_SECONDS", "60"))
     
     @classmethod
     def validate(cls) -> bool:

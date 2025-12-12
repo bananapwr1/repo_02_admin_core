@@ -4,6 +4,7 @@
 import logging
 import json
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -20,6 +21,8 @@ from utils import (
     validate_strategy_name,
     validate_timeframe,
     sanitize_input,
+    safe_delete_message,
+    show_menu,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,14 +43,47 @@ class StrategyEditStates(StatesGroup):
     waiting_new_value = State()
 
 
-@router.message(F.text == "🎯 Управление Стратегиями")
-async def strategies_menu(message: Message):
+@router.message(F.text.contains("Управление Стратегиями"))
+async def strategies_menu(message: Message, state: FSMContext):
     """Меню управления стратегиями"""
-    await message.answer(
+    await show_menu(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        state=state,
+        text="🎯 <b>Управление стратегиями</b>\n\nВыберите действие:",
+        reply_markup=get_strategies_menu_keyboard(),
+        parse_mode="HTML",
+        prefer_edit=True,
+    )
+
+
+@router.message(Command("strategies"))
+async def cmd_strategies(message: Message, state: FSMContext):
+    """Команда: /strategies"""
+    await safe_delete_message(message)
+    await show_menu(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        state=state,
+        text="🎯 <b>Управление стратегиями</b>\n\nВыберите действие:",
+        reply_markup=get_strategies_menu_keyboard(),
+        parse_mode="HTML",
+        prefer_edit=True,
+    )
+
+
+@router.callback_query(F.data == "nav:strategies")
+async def nav_strategies(callback: CallbackQuery, state: FSMContext):
+    """Навигация из главного меню (inline)"""
+    await callback.answer()
+    if not callback.message:
+        return
+    await callback.message.edit_text(
         "🎯 <b>Управление стратегиями</b>\n\nВыберите действие:",
         reply_markup=get_strategies_menu_keyboard(),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
+    await state.update_data(ui_last_menu_message_id=callback.message.message_id, ui_last_menu_chat_id=callback.message.chat.id)
 
 
 @router.callback_query(F.data == "strategies_list")
@@ -206,6 +242,7 @@ async def strategy_edit_field_apply(message: Message, state: FSMContext):
         return
 
     raw = sanitize_input(message.text or "", max_length=5000)
+    await safe_delete_message(message)
     if not raw:
         await message.answer("❌ Пустое значение. Отправьте ещё раз:")
         return
@@ -303,6 +340,7 @@ async def strategy_create_wizard_start(callback: CallbackQuery, state: FSMContex
 @router.message(StrategyWizardStates.waiting_name)
 async def strategy_create_wizard_name(message: Message, state: FSMContext):
     name = sanitize_input(message.text or "", max_length=200)
+    await safe_delete_message(message)
     if not validate_strategy_name(name):
         await message.answer("❌ Некорректное название. Минимум 3, максимум 100 символов. Попробуйте ещё раз:")
         return
@@ -318,6 +356,7 @@ async def strategy_create_wizard_name(message: Message, state: FSMContext):
 @router.message(StrategyWizardStates.waiting_symbols)
 async def strategy_create_wizard_symbols(message: Message, state: FSMContext):
     raw = sanitize_input(message.text or "", max_length=500)
+    await safe_delete_message(message)
     symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
     if not symbols:
         await message.answer("❌ Не удалось распознать symbols. Пример: BTCUSDT, ETHUSDT")
@@ -334,6 +373,7 @@ async def strategy_create_wizard_symbols(message: Message, state: FSMContext):
 @router.message(StrategyWizardStates.waiting_timeframe)
 async def strategy_create_wizard_timeframe(message: Message, state: FSMContext):
     tf = sanitize_input(message.text or "", max_length=10).strip()
+    await safe_delete_message(message)
     if not validate_timeframe(tf):
         await message.answer("❌ Некорректный timeframe. Пример: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w")
         return
@@ -351,6 +391,7 @@ async def strategy_create_wizard_timeframe(message: Message, state: FSMContext):
 @router.message(StrategyWizardStates.waiting_indicators)
 async def strategy_create_wizard_indicators(message: Message, state: FSMContext):
     raw = sanitize_input(message.text or "", max_length=5000)
+    await safe_delete_message(message)
     if raw.lower() == "skip":
         indicators = {}
     else:
@@ -371,6 +412,7 @@ async def strategy_create_wizard_indicators(message: Message, state: FSMContext)
 @router.message(StrategyWizardStates.waiting_risk_level)
 async def strategy_create_wizard_risk(message: Message, state: FSMContext):
     risk = sanitize_input(message.text or "", max_length=20).lower().strip()
+    await safe_delete_message(message)
     if risk not in {"low", "medium", "high"}:
         await message.answer("❌ Некорректный risk_level. Допустимо: low, medium, high")
         return
@@ -389,6 +431,7 @@ async def strategy_create_wizard_risk(message: Message, state: FSMContext):
 @router.message(StrategyWizardStates.waiting_private_params)
 async def strategy_create_wizard_private(message: Message, state: FSMContext):
     raw = sanitize_input(message.text or "", max_length=8000)
+    await safe_delete_message(message)
     private_params = None
     if raw.lower() != "skip":
         if raw.startswith("{"):

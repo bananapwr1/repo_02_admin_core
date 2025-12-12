@@ -4,6 +4,7 @@
 import logging
 from datetime import datetime, timedelta
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -15,6 +16,7 @@ from keyboards import (
     get_pagination_keyboard
 )
 from utils import format_user_info, paginate_list, validate_telegram_id
+from utils import safe_delete_message, show_menu
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -25,14 +27,39 @@ class UserManagementStates(StatesGroup):
     waiting_for_user_id = State()
 
 
-@router.message(F.text == "👥 Пользователи")
-async def users_menu(message: Message):
+@router.message(F.text.contains("Пользователи"))
+async def users_menu(message: Message, state: FSMContext):
     """Главное меню управления пользователями"""
-    await message.answer(
+    await show_menu(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        state=state,
+        text="👥 <b>Управление пользователями</b>\n\nВыберите действие:",
+        reply_markup=get_users_menu_keyboard(),
+        parse_mode="HTML",
+        prefer_edit=True,
+    )
+
+
+@router.message(Command("users"))
+async def cmd_users(message: Message, state: FSMContext):
+    """Команда: /users"""
+    await safe_delete_message(message)
+    await users_menu(message, state)  # type: ignore[arg-type]
+
+
+@router.callback_query(F.data == "nav:users")
+async def nav_users(callback: CallbackQuery, state: FSMContext):
+    """Навигация из главного меню (inline)"""
+    await callback.answer()
+    if not callback.message:
+        return
+    await callback.message.edit_text(
         "👥 <b>Управление пользователями</b>\n\nВыберите действие:",
         reply_markup=get_users_menu_keyboard(),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
+    await state.update_data(ui_last_menu_message_id=callback.message.message_id, ui_last_menu_chat_id=callback.message.chat.id)
 
 
 @router.callback_query(F.data == "users_list")
@@ -197,6 +224,7 @@ async def search_user_prompt(callback: CallbackQuery, state: FSMContext):
 async def search_user_by_id(message: Message, state: FSMContext):
     """Поиск пользователя по ID"""
     user_id = validate_telegram_id(message.text)
+    await safe_delete_message(message)
     
     if not user_id:
         await message.answer("❌ Некорректный Telegram ID. Попробуйте снова:")

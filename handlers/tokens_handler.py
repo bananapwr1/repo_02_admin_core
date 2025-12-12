@@ -4,10 +4,13 @@
 import logging
 import secrets
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 from database import db
 from keyboards import get_tokens_menu_keyboard, get_token_type_keyboard, get_token_subscription_keyboard
 from utils import format_token_info
+from utils import safe_delete_message, show_menu
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -18,14 +21,39 @@ def generate_token(length: int = 16) -> str:
     return secrets.token_urlsafe(length)[:length].replace('_', '-').replace('-', 'X')
 
 
-@router.message(F.text == "🎫 Токены")
-async def tokens_menu(message: Message):
+@router.message(F.text.contains("Токены"))
+async def tokens_menu(message: Message, state: FSMContext):
     """Главное меню токенов"""
-    await message.answer(
+    await show_menu(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        state=state,
+        text="🎫 <b>Управление токенами приглашения</b>\n\nВыберите действие:",
+        reply_markup=get_tokens_menu_keyboard(),
+        parse_mode="HTML",
+        prefer_edit=True,
+    )
+
+
+@router.message(Command("tokens"))
+async def cmd_tokens(message: Message, state: FSMContext):
+    """Команда: /tokens"""
+    await safe_delete_message(message)
+    await tokens_menu(message, state)  # type: ignore[arg-type]
+
+
+@router.callback_query(F.data == "nav:tokens")
+async def nav_tokens(callback: CallbackQuery, state: FSMContext):
+    """Навигация из главного меню (inline)"""
+    await callback.answer()
+    if not callback.message:
+        return
+    await callback.message.edit_text(
         "🎫 <b>Управление токенами приглашения</b>\n\nВыберите действие:",
         reply_markup=get_tokens_menu_keyboard(),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
+    await state.update_data(ui_last_menu_message_id=callback.message.message_id, ui_last_menu_chat_id=callback.message.chat.id)
 
 
 @router.callback_query(F.data == "tokens_list")

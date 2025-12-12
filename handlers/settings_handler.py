@@ -4,12 +4,14 @@
 import logging
 import json
 from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from config.settings import settings
 from keyboards import get_core_settings_keyboard
 from services.core_settings_service import get_core_settings_service
+from utils import safe_delete_message, show_menu
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -33,14 +35,43 @@ def _mask(value: str | None, keep: int = 4) -> str:
     return f"{value[:keep]}***{value[-keep:]}"
 
 
-@router.message(F.text == "⚙️ Настройки Бота Ядра")
-async def settings_menu(message: Message):
+@router.message(F.text.contains("Настройки Бота Ядра"))
+async def settings_menu(message: Message, state: FSMContext):
     """Меню настроек Ядра"""
     text = (
         "⚙️ <b>Настройки Бота Ядра</b>\n\n"
         "Раздел для управления внутренними настройками и секретами (ключи/токены).\n"
     )
-    await message.answer(text, reply_markup=get_core_settings_keyboard(), parse_mode="HTML")
+    await show_menu(
+        bot=message.bot,
+        chat_id=message.chat.id,
+        state=state,
+        text=text,
+        reply_markup=get_core_settings_keyboard(),
+        parse_mode="HTML",
+        prefer_edit=True,
+    )
+
+
+@router.message(Command("settings"))
+async def cmd_settings(message: Message, state: FSMContext):
+    """Команда: /settings"""
+    await safe_delete_message(message)
+    await settings_menu(message, state)  # type: ignore[arg-type]
+
+
+@router.callback_query(F.data == "nav:settings")
+async def nav_settings(callback: CallbackQuery, state: FSMContext):
+    """Навигация из главного меню (inline)"""
+    await callback.answer()
+    if not callback.message:
+        return
+    text = (
+        "⚙️ <b>Настройки Бота Ядра</b>\n\n"
+        "Раздел для управления внутренними настройками и секретами (ключи/токены).\n"
+    )
+    await callback.message.edit_text(text, reply_markup=get_core_settings_keyboard(), parse_mode="HTML")
+    await state.update_data(ui_last_menu_message_id=callback.message.message_id, ui_last_menu_chat_id=callback.message.chat.id)
 
 
 @router.callback_query(F.data == "core_settings_info")
@@ -158,36 +189,31 @@ async def core_secret_set_apply(message: Message, state: FSMContext):
     service = get_core_settings_service()
     ok = await service.set_secret(key, value)
     await state.clear()
+    await safe_delete_message(message)
 
     if ok:
-        await message.answer(
-            f"✅ <b>Секрет сохранён:</b> {meta['title']}\n\n"
-            "Сохранено в Supabase в зашифрованном виде.",
+        await show_menu(
+            bot=message.bot,
+            chat_id=message.chat.id,
+            state=state,
+            text=(
+                f"✅ <b>Секрет сохранён:</b> {meta['title']}\n\n"
+                "Сохранено в Supabase в зашифрованном виде."
+            ),
             reply_markup=get_core_settings_keyboard(),
             parse_mode="HTML",
+            prefer_edit=True,
         )
     else:
-        await message.answer(
-            "❌ Не удалось сохранить секрет. Проверьте SUPABASE_ENCRYPTION_KEY и таблицу core_settings в Supabase.",
+        await show_menu(
+            bot=message.bot,
+            chat_id=message.chat.id,
+            state=state,
+            text="❌ Не удалось сохранить секрет. Проверьте SUPABASE_ENCRYPTION_KEY и таблицу core_settings в Supabase.",
             reply_markup=get_core_settings_keyboard(),
             parse_mode="HTML",
+            prefer_edit=True,
         )
 
 
-@router.callback_query(F.data == "main_menu")
-async def back_to_main_menu(callback: CallbackQuery):
-    """Вернуться в главное меню"""
-    await callback.answer()
-    from keyboards import get_main_menu_keyboard
-    
-    await callback.message.answer(
-        "🎛 <b>Главное меню</b>\n\nВыберите действие:",
-        reply_markup=get_main_menu_keyboard(),
-        parse_mode="HTML"
-    )
-
-
-@router.callback_query(F.data == "noop")
-async def noop_callback(callback: CallbackQuery):
-    """Пустой callback (для неактивных кнопок)"""
-    await callback.answer()
+ # home/noop обработчики вынесены в handlers/navigation_handler.py

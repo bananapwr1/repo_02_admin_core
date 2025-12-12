@@ -38,7 +38,7 @@ await notifier.notify_startup()  # Уведомление о запуске
 - ✅ Создание стратегий с автоматическим шифрованием
 - ✅ Активация/деактивация стратегий
 - ✅ Чтение стратегий с автоматической расшифровкой
-- ✅ Использование SUPABASE_SERVICE_ROLE_KEY
+- ✅ Использование SUPABASE_SERVICE_KEY (или SUPABASE_KEY)
 - ✅ Автоматические уведомления при изменениях
 
 **Шифруемые поля:**
@@ -109,7 +109,7 @@ decrypted = encryption.decrypt(encrypted)
 
 ### Обновленные Файлы (6):
 
-- ✅ `config/settings.py` - Добавлены ADMIN_CHAT_ID, ENCRYPTION_KEY
+- ✅ `config/settings.py` - Зафиксированы обязательные env-переменные (5 шт.)
 - ✅ `.env.example` - Добавлены новые переменные
 - ✅ `requirements.txt` - Добавлен cryptography
 - ✅ `bot.py` - Интегрированы уведомления
@@ -127,21 +127,21 @@ pip install -r requirements.txt
 
 ### Шаг 2: Сгенерируйте Ключ Шифрования
 ```bash
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 ```
 Скопируйте полученный ключ!
 
 ### Шаг 3: Настройте .env
 Создайте `.env` файл из `.env.example` и добавьте:
 ```env
-TELEGRAM_BOT_TOKEN_ADMIN=ваш_токен_бота
-SUPABASE_URL=https://ваш-проект.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key_200plus_символов
-ADMIN_CHAT_ID=ваш_telegram_id
-ENCRYPTION_KEY=сгенерированный_ключ
+TELEGRAM_BOT_TOKEN=ваш_токен_бота
+SUPABASE_BASE_URL=https://ваш-проект.supabase.co
+SUPABASE_SERVICE_KEY=ваш_service_role_key_200plus_символов
+SUPABASE_ENCRYPTION_KEY=сгенерированный_ключ
+ADMIN_USER_ID=ваш_telegram_id
 ```
 
-**Как узнать ADMIN_CHAT_ID:**
+**Как узнать ADMIN_USER_ID:**
 1. Откройте @userinfobot в Telegram
 2. Отправьте любое сообщение
 3. Скопируйте ваш ID
@@ -159,13 +159,13 @@ ADD COLUMN IF NOT EXISTS credentials_encrypted TEXT;
 
 ### Шаг 5: Запустите Тесты
 ```bash
-python test_admin_core_features.py
+python3 test_admin_core_features.py
 ```
 Ожидайте: ✅ 4/4 тестов пройдено
 
 ### Шаг 6: Запустите Бота
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ✅ **Вы получите уведомление в Telegram о запуске!**
@@ -203,13 +203,13 @@ python bot.py
 
 ### Частые Проблемы:
 
-**1. "ENCRYPTION_KEY не установлен"**
+**1. "SUPABASE_ENCRYPTION_KEY не установлен"**
 ```bash
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 # Скопируйте ключ в .env
 ```
 
-**2. "ADMIN_CHAT_ID не установлен"**
+**2. "ADMIN_USER_ID не установлен"**
 - Откройте @userinfobot в Telegram
 - Скопируйте ID в .env
 
@@ -227,17 +227,17 @@ python generate_encryption_key.py
 Перед использованием убедитесь:
 
 - [ ] `pip install -r requirements.txt` выполнен
-- [ ] `ENCRYPTION_KEY` сгенерирован и в .env
-- [ ] `ADMIN_CHAT_ID` установлен в .env
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` в .env (200+ символов)
+- [ ] `SUPABASE_ENCRYPTION_KEY` сгенерирован и в .env
+- [ ] `ADMIN_USER_ID` установлен в .env
+- [ ] `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`) в .env (200+ символов)
 - [ ] Миграция БД выполнена
-- [ ] `python test_admin_core_features.py` показывает 4/4
+- [ ] `python3 test_admin_core_features.py` показывает 4/4
 - [ ] Бот запускается без ошибок
 - [ ] Пришло уведомление в Telegram при запуске
 
 ### Всё готово? 🎉
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ---

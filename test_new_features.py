@@ -27,7 +27,7 @@ async def test_connection():
     try:
         # Проверяем наличие ключа
         key_length = len(settings.SUPABASE_KEY)
-        print(f"✓ Переменная SUPABASE_SERVICE_ROLE_KEY загружена")
+        print(f"✓ Переменная SUPABASE_SERVICE_KEY (или SUPABASE_KEY) загружена")
         print(f"  Длина ключа: {key_length} символов")
         
         if key_length < 100:
@@ -219,7 +219,7 @@ async def run_all_tests():
     
     if not test1:
         print("\n❌ Критический тест не пройден! Остановка тестирования.")
-        print("\n💡 Запустите диагностику: python diagnose_connection.py")
+        print("\n💡 Запустите диагностику: python3 diagnose_connection.py")
         return False
     
     # Тест 2: Агрегация данных

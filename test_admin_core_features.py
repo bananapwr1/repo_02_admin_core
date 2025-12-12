@@ -23,9 +23,9 @@ def test_encryption():
     
     # Проверяем наличие ключа
     if not settings.ENCRYPTION_KEY:
-        print("❌ ENCRYPTION_KEY не установлен!")
+        print("❌ SUPABASE_ENCRYPTION_KEY не установлен!")
         print("\n💡 Сгенерируйте ключ командой:")
-        print('python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"')
+        print('python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"')
         return False
     
     encryption = EncryptionService()
@@ -225,15 +225,15 @@ async def test_notifications():
     print("ТЕСТ 4: Проверка системы уведомлений")
     print("="*60)
     
-    if not settings.ADMIN_CHAT_ID:
-        print("⚠️ ADMIN_CHAT_ID не установлен")
+    if not settings.ADMIN_USER_ID:
+        print("❌ ADMIN_USER_ID не установлен")
         print("   Уведомления не могут быть отправлены")
-        print("   Установите ADMIN_CHAT_ID в .env файле")
+        print("   Установите ADMIN_USER_ID в .env файле")
         return False
     
-    print(f"✅ ADMIN_CHAT_ID настроен: {settings.ADMIN_CHAT_ID}")
+    print(f"✅ ADMIN_USER_ID настроен: {settings.ADMIN_USER_ID}")
     print("✅ Уведомления будут отправляться при работе бота")
-    print("\n💡 Для полной проверки запустите бота командой: python bot.py")
+    print("\n💡 Для полной проверки запустите бота командой: python3 bot.py")
     
     return True
 
@@ -246,11 +246,10 @@ def print_summary():
     
     print("\n📋 Переменные окружения:")
     print(f"  ✅ TELEGRAM_BOT_TOKEN: {'✓ Установлен' if settings.TELEGRAM_BOT_TOKEN else '✗ НЕ установлен'}")
-    print(f"  ✅ SUPABASE_URL: {settings.SUPABASE_URL if settings.SUPABASE_URL else '✗ НЕ установлен'}")
-    print(f"  ✅ SUPABASE_SERVICE_ROLE_KEY: {'✓ Установлен' if settings.SUPABASE_KEY else '✗ НЕ установлен'}")
-    print(f"  ✅ ENCRYPTION_KEY: {'✓ Установлен' if settings.ENCRYPTION_KEY else '✗ НЕ установлен'}")
-    print(f"  ✅ ADMIN_CHAT_ID: {settings.ADMIN_CHAT_ID if settings.ADMIN_CHAT_ID else '✗ НЕ установлен'}")
-    print(f"  ✅ ADMIN_IDS: {len(settings.ADMIN_IDS)} администратор(ов)")
+    print(f"  ✅ SUPABASE_BASE_URL: {settings.SUPABASE_URL if settings.SUPABASE_URL else '✗ НЕ установлен'}")
+    print(f"  ✅ SUPABASE_SERVICE_KEY (или SUPABASE_KEY): {'✓ Установлен' if settings.SUPABASE_KEY else '✗ НЕ установлен'}")
+    print(f"  ✅ SUPABASE_ENCRYPTION_KEY: {'✓ Установлен' if settings.ENCRYPTION_KEY else '✗ НЕ установлен'}")
+    print(f"  ✅ ADMIN_USER_ID: {settings.ADMIN_USER_ID if settings.ADMIN_USER_ID else '✗ НЕ установлен'}")
     
     print("\n📊 Статус компонентов:")
     print("  ✅ Сервис шифрования: Реализован")

@@ -402,8 +402,7 @@ class StrategyTemplatesService:
             },
             "entry_rules": asdict(template.entry_rules),
             "exit_rules": asdict(template.exit_rules),
-            "risk_management": asdict(template.risk_management),
-            "created_by_ai": False
+            "risk_management": asdict(template.risk_management)
         }
         
         try:

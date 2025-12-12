@@ -22,7 +22,8 @@ class NotificationService:
             bot: Экземпляр Telegram бота (если None, будет создан новый)
         """
         self.bot = bot
-        self.admin_chat_id = settings.ADMIN_CHAT_ID
+        # Repo 02: единый администратор, уведомления отправляем ему же
+        self.admin_chat_id = settings.ADMIN_USER_ID
         self._bot_token = settings.TELEGRAM_BOT_TOKEN
     
     async def _get_bot(self) -> Optional[Bot]:
@@ -54,7 +55,7 @@ class NotificationService:
             bool: True если уведомление отправлено успешно
         """
         if not self.admin_chat_id:
-            logger.warning("⚠️ ADMIN_CHAT_ID не установлен, уведомление не отправлено")
+            logger.warning("⚠️ ADMIN_USER_ID не установлен, уведомление не отправлено")
             return False
         
         try:
@@ -123,8 +124,8 @@ class NotificationService:
             "<b>Ошибка подключения к Supabase</b>\n\n"
             f"<code>{error_message}</code>\n\n"
             "Проверьте:\n"
-            "• SUPABASE_URL\n"
-            "• SUPABASE_SERVICE_ROLE_KEY\n"
+            "• SUPABASE_BASE_URL\n"
+            "• SUPABASE_SERVICE_KEY (или SUPABASE_KEY)\n"
             "• Доступность Supabase API"
         )
         return await self.send_notification(message, level="CRITICAL")
@@ -134,7 +135,7 @@ class NotificationService:
         message = (
             "<b>Ошибка шифрования данных</b>\n\n"
             f"<code>{error_message}</code>\n\n"
-            "Проверьте ENCRYPTION_KEY в конфигурации"
+            "Проверьте SUPABASE_ENCRYPTION_KEY в конфигурации"
         )
         return await self.send_notification(message, level="ERROR")
     

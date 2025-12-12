@@ -25,14 +25,14 @@ pip install -r requirements.txt
 
 ### 2. Генерация Ключа Шифрования
 ```bash
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 ```
 
 ### 3. Настройка `.env`
 ```env
-ADMIN_CHAT_ID=ваш_telegram_id
-ENCRYPTION_KEY=сгенерированный_ключ
-SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key
+ADMIN_USER_ID=ваш_telegram_id
+SUPABASE_ENCRYPTION_KEY=сгенерированный_ключ
+SUPABASE_SERVICE_KEY=ваш_service_role_key
 ```
 
 ### 4. Миграция БД
@@ -43,7 +43,7 @@ SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_key
 
 ### 5. Тестирование
 ```bash
-python test_admin_core_features.py
+python3 test_admin_core_features.py
 ```
 
 ### 6. Запуск
@@ -144,8 +144,8 @@ admin-core/
 
 1. **НИКОГДА не коммитьте** `.env` файл
 2. **ХРАНИТЕ в безопасном месте**:
-   - `ENCRYPTION_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_ENCRYPTION_KEY`
+   - `SUPABASE_SERVICE_KEY` (или `SUPABASE_KEY`)
 3. **НЕ ДЕЛИТЕСЬ** этими ключами
 4. **СОЗДАЙТЕ резервную копию** ключей
 
@@ -198,13 +198,13 @@ python bot.py
 
 ## 🆘 Помощь
 
-### Проблема: "ENCRYPTION_KEY не установлен"
+### Проблема: "SUPABASE_ENCRYPTION_KEY не установлен"
 ```bash
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 # Скопируйте ключ в .env
 ```
 
-### Проблема: "ADMIN_CHAT_ID не установлен"
+### Проблема: "ADMIN_USER_ID не установлен"
 ```bash
 # Откройте @userinfobot в Telegram
 # Отправьте любое сообщение
@@ -313,8 +313,8 @@ async def handle_strategy(callback: CallbackQuery):
 ### Перед Использованием Проверьте:
 
 - [ ] Зависимости установлены
-- [ ] `ENCRYPTION_KEY` сгенерирован
-- [ ] `ADMIN_CHAT_ID` настроен
+- [ ] `SUPABASE_ENCRYPTION_KEY` сгенерирован
+- [ ] `ADMIN_USER_ID` настроен
 - [ ] Миграция БД выполнена
 - [ ] Тесты пройдены
 - [ ] Бот запускается без ошибок
@@ -322,7 +322,7 @@ async def handle_strategy(callback: CallbackQuery):
 
 ### Всё готово? 🎉
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 ---

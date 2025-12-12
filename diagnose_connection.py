@@ -29,7 +29,7 @@ async def test_network_connectivity():
     
     # Проверка доступности Supabase
     if not settings.SUPABASE_URL:
-        print("❌ SUPABASE_URL не установлен")
+        print("❌ SUPABASE_BASE_URL не установлен")
         return False
     
     try:
@@ -54,35 +54,35 @@ def check_environment_variables():
     
     # Проверка TELEGRAM_BOT_TOKEN
     if not settings.TELEGRAM_BOT_TOKEN:
-        print("❌ TELEGRAM_BOT_TOKEN_ADMIN не установлен")
-        issues.append("TELEGRAM_BOT_TOKEN_ADMIN")
+        print("❌ TELEGRAM_BOT_TOKEN не установлен")
+        issues.append("TELEGRAM_BOT_TOKEN")
     else:
         token_preview = settings.TELEGRAM_BOT_TOKEN[:10] + "..." + settings.TELEGRAM_BOT_TOKEN[-10:]
         print(f"✅ TELEGRAM_BOT_TOKEN: {token_preview} (длина: {len(settings.TELEGRAM_BOT_TOKEN)})")
     
     # Проверка SUPABASE_URL
     if not settings.SUPABASE_URL:
-        print("❌ SUPABASE_URL не установлен")
-        issues.append("SUPABASE_URL")
+        print("❌ SUPABASE_BASE_URL не установлен")
+        issues.append("SUPABASE_BASE_URL")
     else:
-        print(f"✅ SUPABASE_URL: {settings.SUPABASE_URL}")
+        print(f"✅ SUPABASE_BASE_URL: {settings.SUPABASE_URL}")
         
         if not settings.SUPABASE_URL.startswith("https://"):
             print("   ⚠️ URL должен начинаться с https://")
-            issues.append("SUPABASE_URL (неверный формат)")
+            issues.append("SUPABASE_BASE_URL (неверный формат)")
         
         if not settings.SUPABASE_URL.endswith(".supabase.co"):
             print("   ⚠️ URL должен заканчиваться на .supabase.co")
-            issues.append("SUPABASE_URL (неверный домен)")
+            issues.append("SUPABASE_BASE_URL (неверный домен)")
     
     # Проверка SUPABASE_KEY
     if not settings.SUPABASE_KEY:
-        print("❌ SUPABASE_SERVICE_ROLE_KEY не установлен")
-        issues.append("SUPABASE_SERVICE_ROLE_KEY")
+        print("❌ SUPABASE_SERVICE_KEY (или SUPABASE_KEY) не установлен")
+        issues.append("SUPABASE_SERVICE_KEY|SUPABASE_KEY")
     else:
         key_length = len(settings.SUPABASE_KEY)
         key_preview = settings.SUPABASE_KEY[:15] + "..." + settings.SUPABASE_KEY[-15:]
-        print(f"✅ SUPABASE_KEY: {key_preview}")
+        print(f"✅ SUPABASE_SERVICE_KEY: {key_preview}")
         print(f"   Длина ключа: {key_length} символов")
         
         # Анализ типа ключа
@@ -96,9 +96,9 @@ def check_environment_variables():
             print("      2. Выберите ваш проект")
             print("      3. Settings -> API")
             print("      4. Скопируйте 'service_role' key (НЕ 'anon' key!)")
-            print("      5. Вставьте его в .env как SUPABASE_SERVICE_ROLE_KEY")
+            print("      5. Вставьте его в .env как SUPABASE_SERVICE_KEY (или SUPABASE_KEY)")
             print()
-            issues.append("SUPABASE_SERVICE_ROLE_KEY (используется Anon Key вместо Service Role Key)")
+            issues.append("SUPABASE_SERVICE_KEY|SUPABASE_KEY (используется Anon Key вместо Service Role Key)")
         elif key_length >= 100 and key_length < 200:
             print("   ⚠️ Ключ короче обычного Service Role Key (обычно 200+ символов)")
             print("   Убедитесь, что это именно Service Role Key")
@@ -107,13 +107,14 @@ def check_environment_variables():
         
         if not settings.SUPABASE_KEY.startswith("eyJ"):
             print("   ⚠️ Service Role Key обычно начинается с 'eyJ'")
-            issues.append("SUPABASE_SERVICE_ROLE_KEY (необычный формат)")
+            issues.append("SUPABASE_SERVICE_KEY|SUPABASE_KEY (необычный формат)")
     
-    # Проверка ADMIN_IDS
-    if not settings.ADMIN_IDS:
-        print("⚠️ ADMIN_IDS не установлен (доступ будет у всех пользователей!)")
+    # Проверка ADMIN_USER_ID
+    if not settings.ADMIN_USER_ID:
+        print("❌ ADMIN_USER_ID не установлен (доступ не защищён!)")
+        issues.append("ADMIN_USER_ID")
     else:
-        print(f"✅ ADMIN_IDS: {', '.join(map(str, settings.ADMIN_IDS))} ({len(settings.ADMIN_IDS)} админов)")
+        print(f"✅ ADMIN_USER_ID: {settings.ADMIN_USER_ID}")
     
     print()
     
@@ -260,7 +261,7 @@ def print_solution_steps():
     print()
     print("2. ОБНОВЛЕНИЕ .env ФАЙЛА:")
     print("   - Откройте файл .env в корне проекта")
-    print("   - Найдите строку SUPABASE_SERVICE_ROLE_KEY=...")
+    print("   - Найдите строку SUPABASE_SERVICE_KEY=... (или SUPABASE_KEY=...)")
     print("   - Вставьте скопированный Service Role Key")
     print("   - Сохраните файл")
     print()
@@ -270,7 +271,7 @@ def print_solution_steps():
     print("   - Это создаст все необходимые таблицы")
     print()
     print("4. ПОВТОРНЫЙ ТЕСТ:")
-    print("   - Запустите: python diagnose_connection.py")
+    print("   - Запустите: python3 diagnose_connection.py")
     print("   - Все проверки должны пройти успешно")
     print()
     print("=" * 70)

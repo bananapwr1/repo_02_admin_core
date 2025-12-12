@@ -1,6 +1,6 @@
 """
 Сервис хранения внутренних настроек/секретов Ядра в Supabase.
-Секреты шифруются с использованием ENCRYPTION_KEY (Fernet).
+Секреты шифруются с использованием SUPABASE_ENCRYPTION_KEY (Fernet).
 """
 
 import logging
@@ -40,7 +40,7 @@ class CoreSettingsService:
     async def set_secret(self, key: str, value: str) -> bool:
         """Сохранить секрет (в БД — только зашифрованный)."""
         if not self.encryption.is_available():
-            logger.warning("ENCRYPTION_KEY не настроен — отказ сохранения секрета")
+            logger.warning("SUPABASE_ENCRYPTION_KEY не настроен — отказ сохранения секрета")
             return False
 
         encrypted_value = self.encryption.encrypt(value)

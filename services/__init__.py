@@ -1,9 +1,8 @@
 """
 Services для Admin Core
-Управление стратегиями, уведомлениями и AI-функционалом
+Управление стратегиями, уведомлениями и настройками
 """
 
-from .ai_strategy_service import ai_service
 from .notification_service import NotificationService, get_notification_service
 from .strategy_manager_service import (
     StrategyManagerService,
@@ -13,9 +12,6 @@ from .strategy_manager_service import (
 from .core_settings_service import CoreSettingsService, get_core_settings_service
 
 __all__ = [
-    # AI Services
-    "ai_service",
-    
     # Сервис уведомлений
     "NotificationService",
     "get_notification_service",

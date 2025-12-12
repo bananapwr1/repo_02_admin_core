@@ -61,6 +61,20 @@ async def on_startup(bot: Bot):
     
     # Отправляем уведомление о запуске через сервис уведомлений
     await notification_service.notify_startup()
+
+    # Запускаем автономный цикл Ядра (генерация сигналов + reasoning logs)
+    try:
+        from services.trading_core_service import get_trading_core
+
+        core = get_trading_core()
+        bot._core_stop_event = asyncio.Event()  # type: ignore[attr-defined]
+        bot._core_task = asyncio.create_task(  # type: ignore[attr-defined]
+            core.run_forever(settings.CORE_LOOP_INTERVAL_SECONDS, stop_event=bot._core_stop_event)  # type: ignore[attr-defined]
+        )
+        logger.info("🧠 Фоновый цикл Ядра запущен")
+    except Exception as e:
+        # Не валим бот полностью — просто фиксируем, чтобы админ мог починить окружение/стратегии
+        logger.error(f"❌ Не удалось запустить фоновый цикл Ядра: {e}")
     
     # Дополнительно отправляем уведомления всем админам
     if settings.ADMIN_IDS:
@@ -86,6 +100,22 @@ async def on_shutdown(bot: Bot):
     # Уведомляем через сервис уведомлений
     notification_service = get_notification_service(bot)
     await notification_service.notify_shutdown()
+
+    # Останавливаем цикл Ядра, если он был запущен
+    try:
+        stop_event = getattr(bot, "_core_stop_event", None)
+        task = getattr(bot, "_core_task", None)
+        if stop_event:
+            stop_event.set()
+        if task:
+            task.cancel()
+            try:
+                await task
+            except Exception:
+                pass
+        logger.info("🧠 Фоновый цикл Ядра остановлен")
+    except Exception:
+        pass
     
     # Дополнительно уведомляем всех админов
     if settings.ADMIN_IDS:

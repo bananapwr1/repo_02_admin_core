@@ -66,7 +66,6 @@
 │   ├── strategies_handler.py # Управление стратегиями
 │   ├── tokens_handler.py     # Генерация токенов
 │   ├── logs_handler.py       # Просмотр логов
-│   ├── ai_chat_handler.py    # AI-диалог для стратегий
 │   └── settings_handler.py   # Настройки бота
 │
 ├── keyboards/                 # Клавиатуры
@@ -79,7 +78,8 @@
 │
 ├── services/                  # Бизнес-логика
 │   ├── __init__.py
-│   └── ai_strategy_service.py # Работа с OpenAI API
+│   ├── strategy_manager_service.py # Управление стратегиями + шифрование
+│   └── trading_core_service.py     # Автономное ядро генерации сигналов
 │
 └── utils/                     # Утилиты
     ├── __init__.py
@@ -112,8 +112,7 @@ nano .env
 - `ADMIN_IDS` - список Telegram ID администраторов через запятую
 
 Опциональные переменные:
-- `OPENAI_API_KEY` - для AI-чата (если не указан, AI-функции будут недоступны)
-- `OPENAI_MODEL` - модель OpenAI (по умолчанию gpt-4-turbo-preview)
+- `CORE_LOOP_INTERVAL_SECONDS` - интервал фонового цикла Ядра (по умолчанию 60)
 
 ### 3. Запуск бота
 

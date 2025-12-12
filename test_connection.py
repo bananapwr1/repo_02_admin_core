@@ -33,12 +33,6 @@ async def test_configuration():
     else:
         print("⚠️  ADMIN_IDS не установлен (доступ будет у всех!)")
     
-    # Проверка OpenAI
-    if settings.OPENAI_API_KEY:
-        print("✅ OpenAI API Key установлен")
-    else:
-        print("⚠️  OpenAI API Key не установлен (AI-функции недоступны)")
-    
     print()
     return True
 

@@ -227,9 +227,6 @@
 **Q: С чего начать?**  
 A: Читайте [QUICKSTART.md](QUICKSTART.md) для быстрого старта.
 
-**Q: Нужен ли OpenAI API?**  
-A: Нет, это опционально. Без него AI-функции недоступны, но остальное работает.
-
 **Q: Какие требования к серверу?**  
 A: Минимум 512MB RAM, Python 3.9+, постоянное подключение к интернету.
 
@@ -261,7 +258,6 @@ A: Смотрите раздел "Решение проблем" в [DEPLOYMENT.
 
 - [Документация aiogram](https://docs.aiogram.dev/) - Telegram Bot Framework
 - [Документация Supabase](https://supabase.com/docs) - База данных
-- [OpenAI API](https://platform.openai.com/docs) - AI интеграция
 - [Python asyncio](https://docs.python.org/3/library/asyncio.html) - Асинхронность
 
 ### Связанные проекты

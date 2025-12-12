@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level);
 CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at DESC);
 
 -- ============================================
--- Таблица логов решений AI
+-- Таблица логов решений Ядра (reasoning logs)
 -- ============================================
 CREATE TABLE IF NOT EXISTS decision_logs (
     id BIGSERIAL PRIMARY KEY,
@@ -271,7 +271,7 @@ COMMENT ON TABLE users IS 'Пользователи торговой систе�
 COMMENT ON TABLE strategies IS 'Торговые стратегии';
 COMMENT ON TABLE invite_tokens IS 'Токены приглашения';
 COMMENT ON TABLE system_logs IS 'Системные логи';
-COMMENT ON TABLE decision_logs IS 'Логи решений AI';
+COMMENT ON TABLE decision_logs IS 'Логи решений Ядра (reasoning logs)';
 COMMENT ON TABLE signals IS 'Торговые сигналы';
 COMMENT ON TABLE trades IS 'Выполненные трейды';
 COMMENT ON TABLE bot_settings IS 'Настройки бота';

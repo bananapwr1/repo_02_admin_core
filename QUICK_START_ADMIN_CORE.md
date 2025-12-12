@@ -49,7 +49,6 @@ ADMIN_CHAT_ID=123456789
 ENCRYPTION_KEY=полученный_ключ_шифрования
 
 # ============= ОПЦИОНАЛЬНЫЕ =============
-OPENAI_API_KEY=your_openai_key
 ADMIN_IDS=123456789,987654321
 ```
 

@@ -9,6 +9,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand, BotCommandScopeChat
 
 from config import settings
 from handlers import setup_routers
@@ -43,6 +44,27 @@ async def on_startup(bot: Bot):
         logger.error(f"❌ {error_msg}")
         await notification_service.notify_error(error_msg, "CONFIG")
         raise
+
+    # Регистрируем команды бота (чтобы UI Telegram показывал меню команд)
+    try:
+        commands = [
+            BotCommand(command="menu", description="Главное меню"),
+            BotCommand(command="strategies", description="Стратегии"),
+            BotCommand(command="analysis", description="Логика ядра (decision logs)"),
+            BotCommand(command="settings", description="Настройки"),
+            BotCommand(command="users", description="Пользователи"),
+            BotCommand(command="tokens", description="Токены приглашения"),
+            BotCommand(command="help", description="Справка"),
+        ]
+        if settings.ADMIN_IDS:
+            for admin_id in settings.ADMIN_IDS:
+                await bot.set_my_commands(commands, scope=BotCommandScopeChat(chat_id=admin_id))
+        else:
+            # fallback (на всякий случай)
+            await bot.set_my_commands(commands)
+        logger.info("✅ Команды бота зарегистрированы")
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось зарегистрировать команды бота: {e}")
     
     # Проверяем подключение к Supabase
     try:

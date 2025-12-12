@@ -101,9 +101,9 @@ decrypted = encryption.decrypt(encrypted)
 | Документ | Описание |
 |----------|----------|
 | [QUICK_START_ADMIN_CORE.md](QUICK_START_ADMIN_CORE.md) | 🚀 Пошаговая инструкция запуска |
-| [EXAMPLES_USAGE.md](EXAMPLES_USAGE.md) | 💡 Примеры кода и использования |
+| [EXAMPLES.md](EXAMPLES.md) | 💡 Примеры кода и использования |
 | [ADMIN_CORE_IMPLEMENTATION.md](ADMIN_CORE_IMPLEMENTATION.md) | 📖 Полная документация API |
-| [ADMIN_CORE_COMPLETION_REPORT.md](ADMIN_CORE_COMPLETION_REPORT.md) | 📊 Детальный отчет о реализации |
+| (удалено) | 📊 Детальные отчёты/сводки убраны для упрощения репозитория |
 | [FINAL_CHECKLIST.md](FINAL_CHECKLIST.md) | ✅ Чеклист проверки готовности |
 
 ---

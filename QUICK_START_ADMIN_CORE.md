@@ -16,12 +16,12 @@ pip install -r requirements.txt
 
 **Вариант А: Используйте скрипт**
 ```bash
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 ```
 
 **Вариант Б: Через командную строку**
 ```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 Скопируйте полученный ключ.
@@ -65,11 +65,8 @@ SUPABASE_ENCRYPTION_KEY=полученный_ключ_шифрования
 Выполните миграцию в Supabase SQL Editor:
 
 ```bash
-# Откройте файл
-cat supabase_migration_encrypted_fields.sql
-
-# Скопируйте содержимое и выполните в Supabase Dashboard
-# https://supabase.com/dashboard -> SQL Editor
+# Откройте файл и выполните содержимое в Supabase Dashboard -> SQL Editor
+# (в терминале можно просто посмотреть файл любым редактором)
 ```
 
 Или выполните SQL напрямую:
@@ -89,7 +86,7 @@ ADD COLUMN IF NOT EXISTS credentials_encrypted TEXT;
 Запустите тестовый скрипт:
 
 ```bash
-python test_admin_core_features.py
+python3 test_admin_core_features.py
 ```
 
 **Ожидаемый результат:**
@@ -109,7 +106,7 @@ python test_admin_core_features.py
 ### ✅ Шаг 6: Запуск Бота
 
 ```bash
-python bot.py
+python3 bot.py
 ```
 
 **Ожидаемый вывод:**
@@ -184,7 +181,7 @@ print(f"Расшифровано: {decrypted}")
 **Решение:**
 ```bash
 # Генерируйте ключ
-python generate_encryption_key.py
+python3 generate_encryption_key.py
 
 # Добавьте в .env
 SUPABASE_ENCRYPTION_KEY=полученный_ключ
@@ -234,7 +231,7 @@ cat supabase_schema.sql
 ## 📚 Дополнительные Ресурсы
 
 - **Полная документация:** `ADMIN_CORE_IMPLEMENTATION.md`
-- **Примеры использования:** `EXAMPLES_USAGE.md`
+- **Примеры использования:** `EXAMPLES.md`
 - **Исходный код:**
   - `services/notification_service.py`
   - `services/strategy_manager_service.py`

@@ -35,10 +35,9 @@
 
 ### Документация
 - [x] ✅ `ADMIN_CORE_IMPLEMENTATION.md` (полная документация)
-- [x] ✅ `EXAMPLES_USAGE.md` (примеры использования)
+- [x] ✅ `EXAMPLES.md` (примеры использования)
 - [x] ✅ `QUICK_START_ADMIN_CORE.md` (быстрый старт)
-- [x] ✅ `ADMIN_CORE_COMPLETION_REPORT.md` (отчет)
-- [x] ✅ `IMPLEMENTATION_SUMMARY.md` (краткая сводка)
+- [x] ✅ (удалено) отчётные/дублирующие сводки (для упрощения репозитория)
 - [x] ✅ `FINAL_CHECKLIST.md` (этот файл)
 
 ### Утилиты

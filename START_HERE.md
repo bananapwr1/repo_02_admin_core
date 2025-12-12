@@ -100,10 +100,9 @@ decrypted = encryption.decrypt(encrypted)
 ### Документация (7):
 
 6. ✅ **`QUICK_START_ADMIN_CORE.md`** - НАЧНИТЕ С ЭТОГО ФАЙЛА!
-7. ✅ `EXAMPLES_USAGE.md` - Примеры использования
+7. ✅ `EXAMPLES.md` - Примеры использования
 8. ✅ `ADMIN_CORE_IMPLEMENTATION.md` - Полная документация
-9. ✅ `ADMIN_CORE_COMPLETION_REPORT.md` - Детальный отчет
-10. ✅ `IMPLEMENTATION_SUMMARY.md` - Краткая сводка
+9. ✅ `README.md` / `README_ADMIN_CORE.md` - основная документация
 11. ✅ `FINAL_CHECKLIST.md` - Чеклист проверки
 12. ✅ `README_ADMIN_CORE.md` - README проекта
 
